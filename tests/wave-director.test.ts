@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { WAVE_CALM_MS, WAVE_FIGHT_MS } from "../src/config";
-import { WaveDirector, calmFill, hordeSize, modifierFor, pickSpawnKind } from "../src/waves/wave-director";
+import { ALARM_EXTRA_CAP, WAVE_CALM_MS, WAVE_FIGHT_MS } from "../src/config";
+import { WaveDirector, calmFill, hordeSize, modifierFor, nextHordeLabel, pickSpawnKind } from "../src/waves/wave-director";
 
 describe("WaveDirector", () => {
   it("holds the fight until the horde is filled, then opens the calm interval", () => {
@@ -26,6 +26,21 @@ describe("WaveDirector", () => {
     assert.equal(calmFill(0, WAVE_CALM_MS), 0);
     assert.equal(modifierFor(3), "brute");
     assert.equal(modifierFor(4), "alarms");
+    assert.equal(nextHordeLabel(1), "CORREDORES");
+    assert.equal(nextHordeLabel(2), "BRUTE");
+    assert.equal(nextHordeLabel(3), "ALARMES");
+  });
+
+  it("caps alarm extras until the next fight", () => {
+    const director = new WaveDirector();
+    assert.equal(director.extraRoom, ALARM_EXTRA_CAP);
+    director.noteExtra(ALARM_EXTRA_CAP);
+    assert.equal(director.extraRoom, 0);
+    director.noteSpawn(director.roster);
+    director.clear();
+    director.advance(WAVE_CALM_MS);
+    assert.equal(director.wave, 2);
+    assert.equal(director.extraRoom, ALARM_EXTRA_CAP);
   });
 });
 

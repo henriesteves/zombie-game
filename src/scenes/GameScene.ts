@@ -26,7 +26,7 @@ import { shouldResumeWorld } from "../input/pause-gate";
 import { PickupDrops } from "../pickups/drops";
 import { readHighScore, recordHighScore } from "../score/high-score";
 import { pickOffscreenPoint } from "../spawn/offscreen-point";
-import { WaveDirector, maxAliveFor, modifierLabel, pickLiveKind, spawnIntervalMs } from "../waves/wave-director";
+import { WaveDirector, maxAliveFor, modifierLabel, nextHordeLabel, pickLiveKind, spawnIntervalMs } from "../waves/wave-director";
 import { layStreet } from "../world/street-view";
 import type { HudState } from "./UIScene";
 
@@ -524,9 +524,9 @@ export class GameScene extends Phaser.Scene {
     if ((car.getData("alarmUntil") as number) > time) return;
     car.setData("alarmUntil", time + ALARM_DURATION);
     sfx.alarm(ALARM_DURATION / 1000);
-    for (let i = 0; i < ALARM_SPAWN_COUNT; i++) {
-      const kind = this.rollZombie();
-      this.spawnZombie(kind, { x: car.x, y: car.y });
+    const count = Math.min(ALARM_SPAWN_COUNT, this.waves.extraRoom);
+    for (let i = 0; i < count; i++) {
+      if (this.spawnZombie(this.rollZombie(), { x: car.x, y: car.y })) this.waves.noteExtra();
     }
   }
 
@@ -573,6 +573,7 @@ export class GameScene extends Phaser.Scene {
       phaseSeconds: this.waves.secondsLeft,
       calm: this.waves.phase === "calm",
       hordeLeft: this.waves.pending + this.zombies.countActive(true),
+      nextHorde: nextHordeLabel(this.waves.wave),
       banner: this.waveBanner(),
       combo: Math.min(COMBO_CAP, this.combo),
       comboLeft: this.combo <= 1 ? 0 : Math.max(0, (this.comboUntil - this.time.now) / COMBO_WINDOW_MS),

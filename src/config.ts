@@ -153,6 +153,7 @@ export const CAR_PLAYER_DAMAGE = 48;
 export const CAR_BLAST_HITS = 6;
 export const ALARM_DURATION = 6000;
 export const ALARM_SPAWN_COUNT = 8;
+export const ALARM_EXTRA_CAP = 4;
 export const ALARM_SPAWN_SPREAD = 160;
 export const WORLD_INSET = 40;
 export const SPAWN_VIEW_MARGIN = 70;

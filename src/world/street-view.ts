@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { STREET_LEFT, STREET_RIGHT, WORLD_H } from "../config";
 import { CAR_COLORS } from "../assets/proceduralTextures";
-import { curbCars, streetBarrels, streetBlocks, streetLamps, type StreetPoint } from "./street";
+import { placeStreetProps, streetBlocks, type StreetPoint } from "./street";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
@@ -18,11 +18,11 @@ export function layStreet(
   scene.add.tileSprite(STREET_LEFT, 0, SIDEWALK_WIDTH, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
   scene.add.tileSprite(STREET_RIGHT - SIDEWALK_WIDTH, 0, SIDEWALK_WIDTH, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
   for (const block of streetBlocks()) addBuilding(buildings, block);
-  for (const spot of curbCars()) addCurbCar(cars, spot.x, spot.y);
-  for (const spot of streetBarrels()) addBarrel(barrels, spot.x, spot.y);
-  const lamps = streetLamps();
-  for (const lamp of lamps) scene.add.image(lamp.x, lamp.y - LAMP_OFFSET_Y, "lamp").setDepth(6);
-  return lamps;
+  const props = placeStreetProps(() => Math.random());
+  for (const spot of props.cars) addCurbCar(cars, spot.x, spot.y);
+  for (const spot of props.barrels) addBarrel(barrels, spot.x, spot.y);
+  for (const lamp of props.lamps) scene.add.image(lamp.x, lamp.y - LAMP_OFFSET_Y, "lamp").setDepth(6);
+  return props.lamps;
 }
 
 function addBuilding(

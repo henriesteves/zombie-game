@@ -21,6 +21,7 @@ export interface HudState {
   phaseSeconds: number;
   calm: boolean;
   hordeLeft: number;
+  nextHorde: string;
   banner: string;
   combo: number;
   comboLeft: number;
@@ -42,6 +43,7 @@ export class UIScene extends Phaser.Scene {
   private overText!: Phaser.GameObjects.Text;
   private alertText!: Phaser.GameObjects.Text;
   private calmText!: Phaser.GameObjects.Text;
+  private nextHordeText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private pauseText!: Phaser.GameObjects.Text;
   private shownCombo = 0;
@@ -71,6 +73,9 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
     this.calmText = this.add.text(VIEW_W / 2, 128, "", {
       fontFamily: "monospace", fontSize: "54px", color: "#e2c14a",
+    }).setOrigin(0.5).setVisible(false);
+    this.nextHordeText = this.add.text(VIEW_W / 2, 172, "", {
+      fontFamily: "monospace", fontSize: "18px", color: "#f2efe4",
     }).setOrigin(0.5).setVisible(false);
     this.alertText = this.add.text(VIEW_W / 2, 48, "HORDA A CAMINHO", {
       fontFamily: "monospace", fontSize: "22px", color: "#ff4040", backgroundColor: "rgba(0,0,0,0.55)",
@@ -112,6 +117,7 @@ export class UIScene extends Phaser.Scene {
   private drawCalm(s: HudState) {
     const show = s.calm && !s.dead && !s.wheelOpen;
     this.calmText.setVisible(show);
+    this.nextHordeText.setVisible(show);
     if (!show) return;
     const width = 320;
     const x = (VIEW_W - width) / 2;
@@ -120,6 +126,7 @@ export class UIScene extends Phaser.Scene {
     this.g.fillStyle(0x000000, 0.6).fillRect(x, y, width, 12);
     this.g.fillStyle(0xe2c14a, 1).fillRect(x + 2, y + 2, fill, 8);
     this.calmText.setText(String(Math.ceil(s.phaseSeconds)));
+    this.nextHordeText.setText(`a seguir: ${s.nextHorde}`);
   }
 
   private drawThreatArrows(s: HudState) {
@@ -156,7 +163,7 @@ export class UIScene extends Phaser.Scene {
 
     this.overText.setVisible(s.dead);
     this.pauseText.setVisible(s.paused && !s.dead);
-    if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\n\npressione R para reiniciar`);
+    if (s.dead) this.overText.setText(`VOCÊ MORREU\nonda ${s.wave}\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\n\npressione R para reiniciar`);
     const showCombo = s.combo >= 2 && !s.dead && !s.wheelOpen;
     this.comboText.setVisible(showCombo);
     if (!showCombo) this.shownCombo = 0;

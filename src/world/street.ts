@@ -65,3 +65,43 @@ export function streetLamps(): StreetPoint[] {
     { x: WORLD_W / 2, y: 1400 },
   ];
 }
+
+const CAR_SLIDE = 140;
+const BARREL_NUDGE = 70;
+const LAMP_NUDGE = 36;
+const PROP_CENTER_CLEAR = 200;
+
+export interface StreetProps {
+  cars: StreetPoint[];
+  barrels: StreetPoint[];
+  lamps: StreetPoint[];
+}
+
+export function placeStreetProps(roll: () => number): StreetProps {
+  return {
+    cars: curbCars().map((point) => slideAlongCurb(point, roll)),
+    barrels: streetBarrels().map((point) => nudgeOnStreet(point, roll, BARREL_NUDGE)),
+    lamps: streetLamps().map((point) => nudgeOnStreet(point, roll, LAMP_NUDGE)),
+  };
+}
+
+function slideAlongCurb(point: StreetPoint, roll: () => number): StreetPoint {
+  return { x: point.x, y: clampStreetY(point.y + (roll() - 0.5) * CAR_SLIDE) };
+}
+
+function nudgeOnStreet(point: StreetPoint, roll: () => number, reach: number): StreetPoint {
+  const x = clamp(point.x + (roll() - 0.5) * reach * 2, STREET_LEFT + 64, STREET_RIGHT - 64);
+  const y = clampStreetY(point.y + (roll() - 0.5) * reach * 2);
+  const centerX = WORLD_W / 2;
+  const centerY = WORLD_H / 2;
+  if (Math.hypot(x - centerX, y - centerY) < PROP_CENTER_CLEAR) return point;
+  return { x, y };
+}
+
+function clampStreetY(y: number): number {
+  return clamp(y, 110, WORLD_H - 110);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}

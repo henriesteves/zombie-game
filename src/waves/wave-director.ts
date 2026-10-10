@@ -1,6 +1,6 @@
 import {
   BLOATER_CHANCE, SPAWN_BASE, SPAWN_CAP, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START, SPAWN_INTERVAL_STEP, SPAWN_PER_WAVE,
-  SPITTER_CHANCE, WAVE_BANNER_MS, WAVE_CALM_MS, type ZombieKind,
+  ALARM_EXTRA_CAP, SPITTER_CHANCE, WAVE_BANNER_MS, WAVE_CALM_MS, type ZombieKind,
 } from "../config";
 
 export type WavePhase = "fight" | "calm";
@@ -19,6 +19,10 @@ export function modifierLabel(modifier: WaveModifier): string {
   if (modifier === "brute") return "BRUTE";
   if (modifier === "alarms") return "ALARMES";
   return "HORDA";
+}
+
+export function nextHordeLabel(wave: number): string {
+  return modifierLabel(modifierFor(wave + 1));
 }
 
 export interface SpawnBands {
@@ -86,6 +90,7 @@ export class WaveDirector {
   wave = 1;
   phase: WavePhase = "fight";
   spawned = 0;
+  extras = 0;
   private phaseMs = 0;
 
   reset() {
@@ -93,6 +98,7 @@ export class WaveDirector {
     this.phase = "fight";
     this.phaseMs = 0;
     this.spawned = 0;
+    this.extras = 0;
   }
 
   get modifier(): WaveModifier {
@@ -111,6 +117,10 @@ export class WaveDirector {
     return this.spawned >= this.roster;
   }
 
+  get extraRoom(): number {
+    return Math.max(0, ALARM_EXTRA_CAP - this.extras);
+  }
+
   get secondsLeft(): number {
     if (this.phase === "calm") return Math.max(0, (WAVE_CALM_MS - this.phaseMs) / 1000);
     return this.phaseMs / 1000;
@@ -122,6 +132,10 @@ export class WaveDirector {
 
   noteSpawn(count = 1): void {
     this.spawned += count;
+  }
+
+  noteExtra(count = 1): void {
+    this.extras += count;
   }
 
   clear(): WaveEvent | null {
@@ -139,6 +153,7 @@ export class WaveDirector {
     this.wave += 1;
     this.phase = "fight";
     this.spawned = 0;
+    this.extras = 0;
     return "fight-started";
   }
 }
