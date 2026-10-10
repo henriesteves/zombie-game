@@ -577,6 +577,9 @@ export class GameScene extends Phaser.Scene {
       combo: Math.min(COMBO_CAP, this.combo),
       comboLeft: this.combo <= 1 ? 0 : Math.max(0, (this.comboUntil - this.time.now) / COMBO_WINDOW_MS),
       paused: this.paused && !this.dead,
+      threats: this.live.map((zombie) => ({ x: zombie.x, y: zombie.y })),
+      scrollX: this.cameras.main.scrollX,
+      scrollY: this.cameras.main.scrollY,
     };
     this.events.emit("hud", s);
   }

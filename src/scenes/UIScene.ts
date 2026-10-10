@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { LOW_HP_RATIO, VIEW_H, VIEW_W } from "../config";
 import * as sfx from "../audio/sfx";
 import { lowHealthBeatMs } from "../fx/low-health";
+import { arrowTriangle, hudArrows } from "../fx/offscreen-arrows";
 
 export interface HudState {
   hp: number;
@@ -18,6 +19,9 @@ export interface HudState {
   combo: number;
   comboLeft: number;
   paused: boolean;
+  threats: { x: number; y: number }[];
+  scrollX: number;
+  scrollY: number;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -83,6 +87,16 @@ export class UIScene extends Phaser.Scene {
     this.beatLeft = interval;
   }
 
+  private drawThreatArrows(s: HudState) {
+    const arrows = hudArrows(s.threats, s.scrollX, s.scrollY);
+    for (const arrow of arrows) {
+      const shadow = arrowTriangle(arrow, 16, 9);
+      const mark = arrowTriangle(arrow, 12, 6);
+      this.g.fillStyle(0x140c08, 0.9).fillTriangle(shadow[0], shadow[1], shadow[2], shadow[3], shadow[4], shadow[5]);
+      this.g.fillStyle(0xffe14a, 1).fillTriangle(mark[0], mark[1], mark[2], mark[3], mark[4], mark[5]);
+    }
+  }
+
   private onHud(s: HudState) {
     this.hud = s;
     const g = this.g;
@@ -92,6 +106,7 @@ export class UIScene extends Phaser.Scene {
     const critical = s.hp > 0 && pct < LOW_HP_RATIO;
     const alpha = critical ? 0.55 + 0.45 * Math.abs(Math.sin(this.pulse / 160)) : 1;
     g.fillStyle(critical ? 0xd03030 : 0x3aa655, alpha).fillRect(24, 24, 240 * pct, 16);
+    this.drawThreatArrows(s);
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
     this.weaponText.setText(`${s.weapon}  ${ammo}`);

@@ -34,6 +34,8 @@ export const PLAYER_MAX_HP = 100;
 export const LOW_HP_RATIO = 0.35;
 export const LOW_HP_BEAT_MS = 920;
 export const LOW_HP_BEAT_MIN_MS = 320;
+export const OFFSCREEN_ARROW_CAP = 8;
+export const OFFSCREEN_ARROW_INSET = 36;
 
 // ---------- Armas (dados, não código) ----------
 export type WeaponId = "pistol" | "smg" | "shotgun";
