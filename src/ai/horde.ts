@@ -3,6 +3,7 @@ import { FLOW_REBUILD_MS } from "../config";
 import * as sfx from "../audio/sfx";
 import type { Zombie } from "../entities/Zombie";
 import type { FlowField } from "./flow-field";
+import { playerPush } from "./player-push";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
@@ -109,8 +110,9 @@ function steerZombie(zombie: Zombie, view: HordeView) {
   const vx = aim.x - aim.y * wobble + zombie.sepX * 1.2;
   const vy = aim.y + aim.x * wobble + zombie.sepY * 1.2;
   const length = Math.hypot(vx, vy) || 1;
+  const push = playerPush(zombie.x, zombie.y, view.player.x, view.player.y);
   zombie.setRotation(Math.atan2(aim.y, aim.x));
-  zombie.setVelocity((vx / length) * zombie.speed, (vy / length) * zombie.speed);
+  zombie.setVelocity((vx / length + push.x) * zombie.speed, (vy / length + push.y) * zombie.speed);
   const dist = Math.hypot(view.player.x - zombie.x, view.player.y - zombie.y);
   if (dist < GROAN_RANGE && Math.random() < GROAN_CHANCE) sfx.groan(zombie.kind === "brute" ? 0.6 : 1);
 }

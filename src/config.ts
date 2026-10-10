@@ -123,6 +123,8 @@ export const BLOATER_PLAYER_DAMAGE = 30;
 export const FLOW_CELL = 32;
 export const FLOW_REBUILD_MS = 180;
 export const FLOW_CLEARANCE = 12;
+export const HORDE_PLAYER_PUSH_RADIUS = 44;
+export const HORDE_PLAYER_PUSH_MAX = 2;
 
 export const EXPLOSION_RADIUS = 130;
 export const BARREL_ZOMBIE_DAMAGE = 20;
