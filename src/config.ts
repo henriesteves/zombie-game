@@ -24,6 +24,10 @@ export const BUILDING_BLOCK_H = 260;
 export const BUILDING_GAP = 150;
 
 export const PLAYER_SPEED = 210;
+export const DASH_SPEED = 720;
+export const DASH_MS = 150;
+export const DASH_COOLDOWN_MS = 800;
+export const DASH_TRAIL_MS = 180;
 export const PLAYER_MAX_HP = 100;
 
 // ---------- Armas (dados, não código) ----------

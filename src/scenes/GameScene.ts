@@ -1,13 +1,16 @@
 import Phaser from "phaser";
 import {
   ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, COMBO_CAP, COMBO_WINDOW_MS,
-  GAMEPAD_START_BUTTON, HIT_STOP_MS, PLAYER_MAX_HP, PLAYER_SPEED, VIEW_H, VIEW_W,
-  WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, startingAmmo, type WeaponId, type ZombieKind,
+  GAMEPAD_START_BUTTON, HIT_STOP_MS, PLAYER_MAX_HP, VIEW_H, VIEW_W,
+  WEAPONS, WORLD_H, WORLD_W, ZOMBIES, startingAmmo, type WeaponId, type ZombieKind,
 } from "../config";
 import { FlowField } from "../ai/flow-field";
 import { updateHorde } from "../ai/horde";
 import * as sfx from "../audio/sfx";
+import { DashState } from "../combat/dash-state";
+import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
+import { Gun } from "../combat/gun";
 import { drawLaserSight } from "../combat/laser-sight";
 import { Zombie } from "../entities/Zombie";
 import { BloodDecals } from "../fx/blood-decals";
@@ -24,9 +27,7 @@ import type { HudState } from "./UIScene";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
-type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC", Phaser.Input.Keyboard.Key>;
-
-const WEAPON_SFX: Record<WeaponId, () => void> = { pistol: sfx.pistol, smg: sfx.smg, shotgun: sfx.shotgun };
+type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE", Phaser.Input.Keyboard.Key>;
 
 export class GameScene extends Phaser.Scene {
   private player!: Sprite;
@@ -70,6 +71,9 @@ export class GameScene extends Phaser.Scene {
   private padStartDown = false;
   private padConfirmDown = false;
   private paused = false;
+  private dash = new DashState();
+  private dashTrail!: DashTrail;
+  private gun!: Gun;
 
   constructor() {
     super("Game");
@@ -97,6 +101,7 @@ export class GameScene extends Phaser.Scene {
     this.impactUntil = 0;
     this.combo = 0;
     this.comboUntil = 0;
+    this.dash.reset();
   }
 
   create() {
@@ -157,18 +162,31 @@ export class GameScene extends Phaser.Scene {
       light: this.light,
     });
     cam.on(Phaser.Cameras.Scene2D.Events.PRE_RENDER, this.syncLight, this);
+    this.dashTrail = new DashTrail(this);
+    this.gun = new Gun({
+      ammo: this.ammo,
+      light: this.light,
+      weapon: () => this.weapon,
+      setWeapon: (id) => { this.weapon = id; },
+      nextShot: () => this.nextShot,
+      setNextShot: (time) => { this.nextShot = time; },
+      player: () => this.player,
+      bullets: () => this.bullets,
+      physics: () => this.physics,
+      camera: () => this.cameras.main,
+    });
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys("W,A,S,D,R,ESC") as Keys;
+    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE") as Keys;
     this.keys.ESC.on("down", this.onEscape, this);
     this.keys.R.on("down", this.onRestartKey, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.keys.ESC.off("down", this.onEscape, this);
       this.keys.R.off("down", this.onRestartKey, this);
     });
-    kb.on("keydown-ONE", () => this.setWeapon("pistol"));
-    kb.on("keydown-TWO", () => this.setWeapon("smg"));
-    kb.on("keydown-THREE", () => this.setWeapon("shotgun"));
-    this.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => this.cycleWeapon(dy > 0 ? 1 : -1));
+    kb.on("keydown-ONE", () => this.gun.set("pistol"));
+    kb.on("keydown-TWO", () => this.gun.set("smg"));
+    kb.on("keydown-THREE", () => this.gun.set("shotgun"));
+    this.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => this.gun.cycle(dy > 0 ? 1 : -1));
     this.physics.add.collider(this.player, this.cars);
     this.physics.add.collider(this.player, this.barrels);
     this.physics.add.collider(this.player, this.buildings);
@@ -191,6 +209,7 @@ export class GameScene extends Phaser.Scene {
 
   update(time: number, delta: number) {
     this.readPauseInput();
+    const wantsDash = this.dash.takeEdges(this.keys.SPACE.isDown, Boolean(this.getPad()?.B));
     if (!this.paused) {
       this.explosions.update(delta);
       this.bloodDecals.dry(time);
@@ -212,7 +231,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.physics.world.isPaused) this.physics.resume();
     this.elapsed += delta / 1000;
-    this.handlePlayer(time);
+    this.handlePlayer(time, delta, wantsDash);
     this.advanceWave(delta);
     this.updateSpawns(delta);
     this.updateZombies(time);
@@ -280,7 +299,7 @@ export class GameScene extends Phaser.Scene {
     return pad && pad.connected ? pad : null;
   }
 
-  private handlePlayer(time: number) {
+  private handlePlayer(time: number, delta: number, wantsDash: boolean) {
     let mx = (this.keys.D.isDown ? 1 : 0) - (this.keys.A.isDown ? 1 : 0);
     let my = (this.keys.S.isDown ? 1 : 0) - (this.keys.W.isDown ? 1 : 0);
     let firing = false;
@@ -294,8 +313,8 @@ export class GameScene extends Phaser.Scene {
       if (ls.length() > 0.2) { mx = ls.x; my = ls.y; }
       if (rs.length() > 0.35) { aim = Math.atan2(rs.y, rs.x); padAim = true; firing = true; }
       if (pad.R2 > 0.3) firing = true;
-      if (pad.R1 && !this.padR1) this.cycleWeapon(1);
-      if (pad.L1 && !this.padL1) this.cycleWeapon(-1);
+      if (pad.R1 && !this.padR1) this.gun.cycle(1);
+      if (pad.L1 && !this.padL1) this.gun.cycle(-1);
       this.padR1 = pad.R1 > 0;
       this.padL1 = pad.L1 > 0;
     }
@@ -308,13 +327,13 @@ export class GameScene extends Phaser.Scene {
 
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
-    this.player.setVelocity(mx * PLAYER_SPEED, my * PLAYER_SPEED);
+    const motion = this.dash.velocity(delta, wantsDash, mx, my, aim);
+    this.player.setVelocity(motion.x, motion.y);
+    this.dashTrail.paint(this.player.x, this.player.y, delta, this.dash.active);
     this.player.setRotation(aim);
-
     if (time < this.invulnUntil) this.player.setTint(Math.floor(time / 80) % 2 ? 0xff5555 : 0xffffff);
     else this.player.clearTint();
-
-    if (firing && time >= this.nextShot) this.shoot(time, aim);
+    if (firing) this.gun.shoot(time, aim);
     this.drawLaser();
   }
 
@@ -327,47 +346,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private shoot(time: number, aim: number) {
-    const w = WEAPONS[this.weapon];
-    if (this.ammo[this.weapon] <= 0) {
-      sfx.click();
-      this.nextShot = time + 250;
-      this.setWeapon("pistol");
-      return;
-    }
-    this.nextShot = time + w.cooldown;
-    if (Number.isFinite(this.ammo[this.weapon])) this.ammo[this.weapon]--;
-
-    const mx = this.player.x + Math.cos(aim) * 30;
-    const my = this.player.y + Math.sin(aim) * 30;
-    for (let i = 0; i < w.pellets; i++) {
-      const b = this.bullets.get(mx, my) as Sprite | null; // object pooling
-      if (!b) continue;
-      const a = aim + Phaser.Math.FloatBetween(-w.spread, w.spread);
-      b.enableBody(true, mx, my, true, true);
-      b.setDepth(11).setRotation(a);
-      const body = b.body as Body;
-      body.setCircle(4, 1, 1);
-      this.physics.velocityFromRotation(a, w.speed * Phaser.Math.FloatBetween(0.92, 1.05), body.velocity);
-      b.setData("dieAt", time + w.life).setData("dmg", w.damage);
-    }
-    WEAPON_SFX[this.weapon]();
-    this.cameras.main.shake(60, w.shake);
-    this.light.flash = 1; // clarão do cano ilumina o redor
-  }
-
-  private setWeapon(id: WeaponId) {
-    if (this.ammo[id] > 0) this.weapon = id;
-  }
-
-  private cycleWeapon(dir: number) {
-    let i = WEAPON_ORDER.indexOf(this.weapon);
-    for (let n = 0; n < WEAPON_ORDER.length; n++) {
-      i = (i + dir + WEAPON_ORDER.length) % WEAPON_ORDER.length;
-      if (this.ammo[WEAPON_ORDER[i]] > 0) { this.weapon = WEAPON_ORDER[i]; return; }
-    }
-  }
-
   private hurt(dmg: number) {
     if (this.dead) return;
     this.hp -= dmg;
@@ -377,6 +355,8 @@ export class GameScene extends Phaser.Scene {
     if (this.hp <= 0) {
       this.hp = 0;
       this.dead = true;
+      this.dash.cancel();
+      this.dashTrail.reset();
       this.bestScore = recordHighScore(this.score);
       this.physics.pause();
       this.player.setTint(0x550000);
