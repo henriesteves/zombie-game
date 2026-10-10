@@ -3,6 +3,7 @@ import {
   DROP_HEALTH, DROP_MAGNUM, DROP_RIFLE, DROP_SHOTGUN, DROP_SMG, HEALTH_PICKUP, PICKUP_LIFE_MS, PLAYER_MAX_HP,
   WEAPON_ORDER, WEAPONS, WORLD_H, WORLD_W, type GunPickup, type PickupKind, type WeaponId,
 } from "../config";
+import { isExpired, remainMs } from "../time/remain-ms";
 import { acceptsPickup, magnetStep, type MagnetPoint } from "./magnet";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -10,7 +11,6 @@ type Sprite = Phaser.Physics.Arcade.Sprite;
 const CACHE_OFFSET = 28;
 
 export interface PickupHost {
-  now(): number;
   getHp(): number;
   setHp(hp: number): void;
   ammo: Record<WeaponId, number>;
@@ -23,15 +23,17 @@ export class PickupDrops {
     private readonly host: PickupHost,
   ) {}
 
-  update(time: number, deltaMs: number, player: MagnetPoint, buildings: Sprite[]) {
+  update(elapsedMs: number, deltaMs: number, player: MagnetPoint, buildings: Sprite[]) {
     for (const child of this.group.getChildren().slice()) {
       const pickup = child as Sprite;
       if (!pickup.active) continue;
-      if (time > (pickup.getData("dieAt") as number)) {
+      const lifeLeft = remainMs((pickup.getData("lifeLeft") as number) ?? 0, deltaMs);
+      pickup.setData("lifeLeft", lifeLeft);
+      if (isExpired(lifeLeft)) {
         pickup.destroy();
         continue;
       }
-      pickup.setScale(1 + Math.sin(time / 180) * 0.08);
+      pickup.setScale(1 + Math.sin(elapsedMs / 180) * 0.08);
       this.pull(pickup, player, buildings, deltaMs);
     }
   }
@@ -60,7 +62,7 @@ export class PickupDrops {
 
   spawn(x: number, y: number, kind: PickupKind) {
     const pickup = this.group.create(x, y, `pickup_${kind}`) as Sprite;
-    pickup.setDepth(6).setData("kind", kind).setData("dieAt", this.host.now() + PICKUP_LIFE_MS);
+    pickup.setDepth(6).setData("kind", kind).setData("lifeLeft", PICKUP_LIFE_MS);
   }
 
   collect(pickup: Sprite) {

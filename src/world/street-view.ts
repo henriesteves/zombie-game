@@ -36,7 +36,7 @@ function addBuilding(
 function addCurbCar(cars: Phaser.Physics.Arcade.StaticGroup, x: number, y: number) {
   const color = Phaser.Utils.Array.GetRandom([...CAR_COLORS]);
   const car = cars.create(x, y, `car_${color}_v`) as Sprite;
-  car.setDepth(6).setData("alarmUntil", 0).setData("hits", 0);
+  car.setDepth(6).setData("alarmLeft", 0).setData("alarmBlink", 0).setData("hits", 0);
 }
 
 function addBarrel(barrels: Phaser.Physics.Arcade.StaticGroup, x: number, y: number) {

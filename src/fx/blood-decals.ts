@@ -16,17 +16,19 @@ export class BloodDecals {
   add(x: number, y: number, tint: number, scale: number) {
     const decal = this.takeDecal(x, y);
     decal.setRotation(Math.random() * Math.PI * 2).setScale(scale).setTint(tint).setAlpha(FRESH_ALPHA);
-    decal.setData("born", this.scene.time.now).setData("blood", tint === BLOOD_TINT);
+    decal.setData("age", 0).setData("blood", tint === BLOOD_TINT);
     this.decals.push(decal);
   }
 
-  dry(time: number) {
+  dry(deltaMs: number) {
     for (const decal of this.decals) {
       if (!decal.getData("blood")) continue;
-      const age = Math.min(1, (time - (decal.getData("born") as number)) / DECAL_DRY_MS);
-      const red = Math.round(FRESH_RED - age * DRY_RED_LOSS);
+      const age = (decal.getData("age") as number) + deltaMs;
+      decal.setData("age", age);
+      const t = Math.min(1, age / DECAL_DRY_MS);
+      const red = Math.round(FRESH_RED - t * DRY_RED_LOSS);
       decal.setTint(Phaser.Display.Color.GetColor(red, Math.round(red * 0.12), Math.round(red * 0.1)));
-      decal.setAlpha(FRESH_ALPHA - age * DRY_ALPHA_LOSS);
+      decal.setAlpha(FRESH_ALPHA - t * DRY_ALPHA_LOSS);
     }
   }
 

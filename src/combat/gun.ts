@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import * as sfx from "../audio/sfx";
 import { WEAPONS, WEAPON_ORDER, type WeaponId } from "../config";
+import { remainMs } from "../time/remain-ms";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
@@ -34,8 +35,6 @@ export interface GunHost {
   light: { flash: number };
   weapon(): WeaponId;
   setWeapon(id: WeaponId): void;
-  nextShot(): number;
-  setNextShot(time: number): void;
   player(): { x: number; y: number };
   bullets(): Phaser.Physics.Arcade.Group;
   physics(): Phaser.Physics.Arcade.ArcadePhysics;
@@ -43,7 +42,13 @@ export interface GunHost {
 }
 
 export class Gun {
+  private cooldownLeft = 0;
+
   constructor(private readonly host: GunHost) {}
+
+  tick(deltaMs: number): void {
+    this.cooldownLeft = remainMs(this.cooldownLeft, deltaMs);
+  }
 
   set(id: WeaponId): void {
     if (this.host.ammo[id] <= 0 || this.host.weapon() === id) return;
@@ -62,25 +67,25 @@ export class Gun {
     }
   }
 
-  shoot(time: number, aim: number): void {
-    if (time < this.host.nextShot()) return;
+  shoot(aim: number): void {
+    if (this.cooldownLeft > 0) return;
     const weaponId = this.host.weapon();
     const weapon = WEAPONS[weaponId];
     if (this.host.ammo[weaponId] <= 0) {
       sfx.click();
-      this.host.setNextShot(time + EMPTY_CLICK_MS);
+      this.cooldownLeft = EMPTY_CLICK_MS;
       this.set("pistol");
       return;
     }
-    this.host.setNextShot(time + weapon.cooldown);
+    this.cooldownLeft = weapon.cooldown;
     if (Number.isFinite(this.host.ammo[weaponId])) this.host.ammo[weaponId] -= 1;
-    this.spawnPellets(time, aim, weapon.pellets, weapon.spread, weapon.speed, weapon.life, weapon.damage);
+    this.spawnPellets(aim, weapon.pellets, weapon.spread, weapon.speed, weapon.life, weapon.damage);
     WEAPON_SFX[weaponId]();
     this.host.camera().shake(SHAKE_MS, weapon.shake);
     this.host.light.flash = 1;
   }
 
-  private spawnPellets(time: number, aim: number, pellets: number, spread: number, speed: number, life: number, damage: number): void {
+  private spawnPellets(aim: number, pellets: number, spread: number, speed: number, life: number, damage: number): void {
     const player = this.host.player();
     const muzzleX = player.x + Math.cos(aim) * MUZZLE_DISTANCE;
     const muzzleY = player.y + Math.sin(aim) * MUZZLE_DISTANCE;
@@ -93,7 +98,7 @@ export class Gun {
       const body = bullet.body as Body;
       body.setCircle(BULLET_RADIUS, 1, 1);
       this.host.physics().velocityFromRotation(angle, speed * Phaser.Math.FloatBetween(0.92, 1.05), body.velocity);
-      bullet.setData("dieAt", time + life).setData("dmg", damage);
+      bullet.setData("lifeLeft", life).setData("dmg", damage);
     }
   }
 }

@@ -1,4 +1,4 @@
-export function shouldResumeWorld(playerPaused: boolean, now: number, impactUntil: number): boolean {
+export function shouldResumeWorld(playerPaused: boolean, impactLeftMs: number): boolean {
   if (playerPaused) return false;
-  return now >= impactUntil;
+  return impactLeftMs <= 0;
 }

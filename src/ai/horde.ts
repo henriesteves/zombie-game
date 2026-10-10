@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { FLOW_REBUILD_MS } from "../config";
 import * as sfx from "../audio/sfx";
 import type { Zombie } from "../entities/Zombie";
+import { remainMs } from "../time/remain-ms";
 import type { FlowField } from "./flow-field";
 import { playerPush } from "./player-push";
 
@@ -20,6 +21,7 @@ const HORDE_LEVEL_DIVISOR = 36;
 
 export interface HordeView {
   time: number;
+  deltaMs: number;
   flowReadyAt: number;
   live: Zombie[];
   flow: FlowField;
@@ -96,13 +98,17 @@ function rebuildFlow(view: HordeView): number {
 
 function steerZombie(zombie: Zombie, view: HordeView) {
   const body = zombie.body as Body;
-  if (view.time < zombie.hitUntil) {
-    zombie.interruptCharge(view.time);
-    body.velocity.scale(0.9);
-    return;
+  if (zombie.hitLeft > 0) {
+    zombie.hitLeft = remainMs(zombie.hitLeft, view.deltaMs);
+    if (zombie.hitLeft > 0) {
+      zombie.interruptCharge();
+      zombie.tickChargeCooldown(view.deltaMs);
+      body.velocity.scale(0.9);
+      return;
+    }
   }
   if (zombie.isTinted) zombie.clearTint();
-  const step = zombie.advanceCharge(view.time, view.player.x, view.player.y);
+  const step = zombie.advanceCharge(view.deltaMs, view.player.x, view.player.y);
   if (step === "start") sfx.bruteWindup();
   if (step) return;
   const aim = aimDirection(zombie, view);

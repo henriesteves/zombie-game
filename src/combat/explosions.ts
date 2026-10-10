@@ -7,6 +7,7 @@ import {
   CAR_ZOMBIE_DAMAGE, EXPLOSION_RADIUS, type PickupKind,
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
+import { advanceDelayedCalls } from "./blast-delay";
 import { carHitEffect } from "./car-smoke";
 import { gunPickupAt } from "../pickups/drops";
 import { isInsideFire } from "./fire-burn";
@@ -64,9 +65,16 @@ interface SmokePuff {
   car: Sprite;
 }
 
+interface PendingBlast {
+  delayMs: number;
+  car?: Sprite;
+  barrel?: Sprite;
+}
+
 export class Explosions {
   readonly fires: Fire[] = [];
   private readonly puffs: SmokePuff[] = [];
+  private readonly pending: PendingBlast[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -91,6 +99,14 @@ export class Explosions {
       this.burnAround(fire);
     }
     this.updateSmoke(delta);
+    this.followUp(delta);
+  }
+
+  private followUp(delta: number) {
+    for (const item of advanceDelayedCalls(this.pending, delta)) {
+      if (item.car) this.woundCar(item.car);
+      if (item.barrel) this.explodeBarrel(item.barrel);
+    }
   }
 
   private burnAround(fire: Fire) {
@@ -185,7 +201,7 @@ export class Explosions {
     for (const car of this.host.cars().slice()) {
       if (!car.active) continue;
       if (Phaser.Math.Distance.Between(car.x, car.y, x, y) > radius) continue;
-      this.scene.time.delayedCall(CAR_CHAIN_DELAY_MS, () => this.woundCar(car));
+      this.pending.push({ delayMs: CAR_CHAIN_DELAY_MS, car });
     }
   }
 
@@ -193,7 +209,7 @@ export class Explosions {
     for (const barrel of this.host.barrels().slice()) {
       if (!barrel.active) continue;
       if (Phaser.Math.Distance.Between(barrel.x, barrel.y, x, y) > radius) continue;
-      this.scene.time.delayedCall(BARREL_CHAIN_DELAY_MS, () => this.explodeBarrel(barrel));
+      this.pending.push({ delayMs: BARREL_CHAIN_DELAY_MS, barrel });
     }
   }
 

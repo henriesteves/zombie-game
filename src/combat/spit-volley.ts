@@ -3,6 +3,7 @@ import {
   SPITTER_COOLDOWN_MS, SPITTER_RANGE, SPITTER_WINDUP_MS, SPIT_DAMAGE, SPIT_LIFE_MS, SPIT_SPAWN_OFFSET, SPIT_SPEED,
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
+import { isExpired, remainMs } from "../time/remain-ms";
 import { stepSpitWindup } from "./spit-windup";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -28,40 +29,40 @@ export class SpitVolley {
     });
   }
 
-  advance(time: number, deltaMs: number, zombies: Zombie[], player: { x: number; y: number }): void {
+  advance(deltaMs: number, zombies: Zombie[], player: { x: number; y: number }): void {
     for (const zombie of zombies) {
       if (zombie.kind !== "spitter") continue;
       if (!zombie.active) {
-        if (zombie.spitWindupLeft > 0) this.abortWindup(zombie, time);
+        if (zombie.spitWindupLeft > 0) this.abortWindup(zombie);
         continue;
       }
-      if (time < zombie.hitUntil) continue;
-      this.holdAndSpit(zombie, player, time, deltaMs);
+      zombie.spitCooldownLeft = remainMs(zombie.spitCooldownLeft, deltaMs);
+      if (zombie.hitLeft > 0) continue;
+      this.holdAndSpit(zombie, player, deltaMs);
     }
-    this.expire(time);
+    this.expire(deltaMs);
   }
 
-  private holdAndSpit(zombie: Zombie, player: { x: number; y: number }, time: number, deltaMs: number): void {
+  private holdAndSpit(zombie: Zombie, player: { x: number; y: number }, deltaMs: number): void {
     const dx = player.x - zombie.x;
     const dy = player.y - zombie.y;
     const distance = Math.hypot(dx, dy);
     const inRange = distance <= SPITTER_RANGE && distance > 0;
     if (zombie.spitWindupLeft > 0) {
-      this.stepWindup(zombie, time, deltaMs, inRange, dx, dy, distance);
+      this.stepWindup(zombie, deltaMs, inRange, dx, dy, distance);
       return;
     }
-    if (!inRange) return;
+    if (!inRange || zombie.spitCooldownLeft > 0) return;
     zombie.setVelocity(0, 0);
     zombie.setRotation(Math.atan2(dy, dx));
-    if (time < zombie.spitReadyAt) return;
     zombie.spitWindupLeft = SPITTER_WINDUP_MS;
     zombie.setTint(WINDUP_TINT);
   }
 
-  private stepWindup(zombie: Zombie, time: number, deltaMs: number, inRange: boolean, dx: number, dy: number, distance: number): void {
+  private stepWindup(zombie: Zombie, deltaMs: number, inRange: boolean, dx: number, dy: number, distance: number): void {
     const step = stepSpitWindup(zombie.spitWindupLeft, deltaMs, zombie.active, inRange);
     if (step.outcome === "abort") {
-      this.abortWindup(zombie, time);
+      this.abortWindup(zombie);
       return;
     }
     zombie.setVelocity(0, 0);
@@ -72,19 +73,19 @@ export class SpitVolley {
       return;
     }
     zombie.clearTint();
-    zombie.spitReadyAt = time + SPITTER_COOLDOWN_MS;
+    zombie.spitCooldownLeft = SPITTER_COOLDOWN_MS;
     const dirX = dx / distance;
     const dirY = dy / distance;
-    this.launch(zombie.x + dirX * SPIT_SPAWN_OFFSET, zombie.y + dirY * SPIT_SPAWN_OFFSET, dirX, dirY, time);
+    this.launch(zombie.x + dirX * SPIT_SPAWN_OFFSET, zombie.y + dirY * SPIT_SPAWN_OFFSET, dirX, dirY);
   }
 
-  private abortWindup(zombie: Zombie, time: number): void {
+  private abortWindup(zombie: Zombie): void {
     zombie.spitWindupLeft = 0;
-    zombie.spitReadyAt = time + SPITTER_COOLDOWN_MS;
+    zombie.spitCooldownLeft = SPITTER_COOLDOWN_MS;
     if (zombie.active) zombie.clearTint();
   }
 
-  private launch(x: number, y: number, dirX: number, dirY: number, time: number): void {
+  private launch(x: number, y: number, dirX: number, dirY: number): void {
     const spit = this.group.get(x, y) as Sprite | null;
     if (!spit) return;
     spit.enableBody(true, x, y, true, true);
@@ -92,7 +93,7 @@ export class SpitVolley {
     const body = spit.body as Body;
     body.setCircle(SPIT_RADIUS, spit.width / 2 - SPIT_RADIUS, spit.height / 2 - SPIT_RADIUS);
     body.setVelocity(dirX * SPIT_SPEED, dirY * SPIT_SPEED);
-    spit.setData("dieAt", time + SPIT_LIFE_MS);
+    spit.setData("lifeLeft", SPIT_LIFE_MS);
   }
 
   private hitPlayer(spit: Sprite): void {
@@ -101,11 +102,13 @@ export class SpitVolley {
     this.hurtPlayer(SPIT_DAMAGE);
   }
 
-  private expire(time: number): void {
+  private expire(deltaMs: number): void {
     for (const child of this.group.getChildren()) {
       const spit = child as Sprite;
       if (!spit.active) continue;
-      if (time < (spit.getData("dieAt") as number)) continue;
+      const left = remainMs((spit.getData("lifeLeft") as number) ?? 0, deltaMs);
+      spit.setData("lifeLeft", left);
+      if (!isExpired(left)) continue;
       spit.disableBody(true, true);
     }
   }
