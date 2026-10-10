@@ -10,7 +10,24 @@ const MUZZLE_DISTANCE = 30;
 const SHAKE_MS = 60;
 const BULLET_RADIUS = 4;
 
-const WEAPON_SFX: Record<WeaponId, () => void> = { pistol: sfx.pistol, smg: sfx.smg, shotgun: sfx.shotgun };
+const WEAPON_SFX: Record<WeaponId, () => void> = {
+  pistol: sfx.pistol, smg: sfx.smg, shotgun: sfx.shotgun, rifle: sfx.rifle, magnum: sfx.magnum,
+};
+
+const HOTKEYS: { event: string; id: WeaponId }[] = [
+  { event: "keydown-ONE", id: "pistol" },
+  { event: "keydown-TWO", id: "smg" },
+  { event: "keydown-THREE", id: "shotgun" },
+  { event: "keydown-FOUR", id: "rifle" },
+  { event: "keydown-FIVE", id: "magnum" },
+];
+
+export function bindWeaponHotkeys(
+  keyboard: Phaser.Input.Keyboard.KeyboardPlugin,
+  choose: (id: WeaponId) => void,
+): void {
+  for (const hotkey of HOTKEYS) keyboard.on(hotkey.event, () => choose(hotkey.id));
+}
 
 export interface GunHost {
   ammo: Record<WeaponId, number>;
@@ -29,8 +46,9 @@ export class Gun {
   constructor(private readonly host: GunHost) {}
 
   set(id: WeaponId): void {
-    if (this.host.ammo[id] <= 0) return;
+    if (this.host.ammo[id] <= 0 || this.host.weapon() === id) return;
     this.host.setWeapon(id);
+    sfx.click();
   }
 
   cycle(dir: number): void {

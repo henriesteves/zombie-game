@@ -42,7 +42,7 @@ export const OFFSCREEN_ARROW_CAP = 8;
 export const OFFSCREEN_ARROW_INSET = 36;
 
 // ---------- Armas (dados, não código) ----------
-export type WeaponId = "pistol" | "smg" | "shotgun";
+export type WeaponId = "pistol" | "smg" | "shotgun" | "rifle" | "magnum";
 
 export interface WeaponDef {
   name: string;
@@ -58,12 +58,14 @@ export interface WeaponDef {
   shake: number; // intensidade do screen shake por tiro
 }
 
-export const WEAPON_ORDER: WeaponId[] = ["pistol", "smg", "shotgun"];
+export const WEAPON_ORDER: WeaponId[] = ["pistol", "smg", "shotgun", "rifle", "magnum"];
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   pistol: { name: "PISTOLA", cooldown: 320, pellets: 1, spread: 0.03, speed: 760, damage: 1, life: 700, ammoMax: Infinity, ammoStart: Infinity, ammoPerPickup: 0, shake: 0.0015 },
   smg: { name: "SMG", cooldown: 85, pellets: 1, spread: 0.09, speed: 860, damage: 1, life: 650, ammoMax: 240, ammoStart: 90, ammoPerPickup: 40, shake: 0.002 },
   shotgun: { name: "SHOTGUN", cooldown: 750, pellets: 7, spread: 0.32, speed: 780, damage: 1.4, life: 380, ammoMax: 48, ammoStart: 24, ammoPerPickup: 8, shake: 0.006 },
+  rifle: { name: "FUZIL", cooldown: 180, pellets: 1, spread: 0.012, speed: 980, damage: 2, life: 820, ammoMax: 90, ammoStart: 36, ammoPerPickup: 18, shake: 0.0025 },
+  magnum: { name: "MAGNUM", cooldown: 560, pellets: 1, spread: 0.02, speed: 900, damage: 5, life: 480, ammoMax: 24, ammoStart: 12, ammoPerPickup: 6, shake: 0.008 },
 };
 
 export function startingAmmo(): Record<WeaponId, number> {
@@ -71,10 +73,13 @@ export function startingAmmo(): Record<WeaponId, number> {
     pistol: WEAPONS.pistol.ammoStart,
     smg: WEAPONS.smg.ammoStart,
     shotgun: WEAPONS.shotgun.ammoStart,
+    rifle: WEAPONS.rifle.ammoStart,
+    magnum: WEAPONS.magnum.ammoStart,
   };
 }
 
-export type PickupKind = "health" | "smg" | "shotgun";
+export type GunPickup = Exclude<WeaponId, "pistol">;
+export type PickupKind = "health" | GunPickup;
 export const AMMO_LOW_RATIO = 0.2;
 
 // ---------- Zumbis ----------
@@ -174,3 +179,5 @@ export const PICKUP_MAGNET_SPEED = 260;
 export const DROP_HEALTH = 0.1;
 export const DROP_SMG = 0.09;
 export const DROP_SHOTGUN = 0.07;
+export const DROP_RIFLE = 0.05;
+export const DROP_MAGNUM = 0.03;

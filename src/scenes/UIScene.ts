@@ -1,9 +1,10 @@
 import Phaser from "phaser";
-import { LOW_HP_RATIO, VIEW_H, VIEW_W } from "../config";
+import { LOW_HP_RATIO, VIEW_H, VIEW_W, type WeaponId } from "../config";
 import * as sfx from "../audio/sfx";
 import { isAmmoLow } from "../combat/ammo-warning";
 import { lowHealthBeatMs } from "../fx/low-health";
 import { arrowTriangle, hudArrows, type ThreatPoint } from "../fx/offscreen-arrows";
+import { WeaponWheelView } from "../combat/weapon-wheel-view";
 
 export interface HudState {
   hp: number;
@@ -25,6 +26,9 @@ export interface HudState {
   threats: ThreatPoint[];
   scrollX: number;
   scrollY: number;
+  wheelOpen: boolean;
+  wheelHighlight: WeaponId | null;
+  loadout: Record<WeaponId, number>;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -41,6 +45,7 @@ export class UIScene extends Phaser.Scene {
   private beatLeft = 0;
   private beating = false;
   private pulse = 0;
+  private wheelView!: WeaponWheelView;
 
   constructor() {
     super("UI");
@@ -64,6 +69,7 @@ export class UIScene extends Phaser.Scene {
       fontFamily: "monospace", fontSize: "22px", color: "#ff4040", backgroundColor: "rgba(0,0,0,0.55)",
     }).setOrigin(0.5).setPadding(10, 4, 10, 4).setVisible(false);
 
+    this.wheelView = new WeaponWheelView(this);
     const game = this.scene.get("Game");
     game.events.on("hud", this.onHud, this);
     this.events.once("shutdown", () => game.events.off("hud", this.onHud, this));
@@ -117,6 +123,7 @@ export class UIScene extends Phaser.Scene {
     g.fillStyle(critical ? 0xd03030 : 0x3aa655, alpha).fillRect(24, 24, 240 * pct, 16);
     this.drawDashMark(s);
     this.drawThreatArrows(s);
+    this.wheelView.paint(g, s);
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
     this.weaponText.setText(`${s.weapon}  ${ammo}`);
@@ -128,7 +135,7 @@ export class UIScene extends Phaser.Scene {
     this.overText.setVisible(s.dead);
     this.pauseText.setVisible(s.paused && !s.dead);
     if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\n\npressione R para reiniciar`);
-    const showCombo = s.combo >= 2 && !s.dead;
+    const showCombo = s.combo >= 2 && !s.dead && !s.wheelOpen;
     this.comboText.setVisible(showCombo);
     if (!showCombo) this.shownCombo = 0;
     if (showCombo) {

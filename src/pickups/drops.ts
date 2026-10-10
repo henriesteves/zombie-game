@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
-  DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, HEALTH_PICKUP, PICKUP_LIFE_MS, PLAYER_MAX_HP, WEAPONS, WORLD_H, WORLD_W,
-  type PickupKind, type WeaponId,
+  DROP_HEALTH, DROP_MAGNUM, DROP_RIFLE, DROP_SHOTGUN, DROP_SMG, HEALTH_PICKUP, PICKUP_LIFE_MS, PLAYER_MAX_HP,
+  WEAPON_ORDER, WEAPONS, WORLD_H, WORLD_W, type GunPickup, type PickupKind, type WeaponId,
 } from "../config";
 import { acceptsPickup, magnetStep, type MagnetPoint } from "./magnet";
 
@@ -72,18 +72,39 @@ export class PickupDrops {
 }
 
 export function rollDrop(roll: number): PickupKind | null {
-  if (roll < DROP_HEALTH) return "health";
-  if (roll < DROP_HEALTH + DROP_SMG) return "smg";
-  if (roll < DROP_HEALTH + DROP_SMG + DROP_SHOTGUN) return "shotgun";
+  const bands: { kind: PickupKind; until: number }[] = [
+    { kind: "health", until: DROP_HEALTH },
+    { kind: "smg", until: DROP_HEALTH + DROP_SMG },
+    { kind: "shotgun", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN },
+    { kind: "rifle", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN + DROP_RIFLE },
+    { kind: "magnum", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN + DROP_RIFLE + DROP_MAGNUM },
+  ];
+  for (const band of bands) {
+    if (roll < band.until) return band.kind;
+  }
   return null;
 }
 
-export function scarcerGun(ammo: Record<WeaponId, number>): "smg" | "shotgun" | null {
-  const smgFill = ammo.smg / WEAPONS.smg.ammoMax;
-  const shotgunFill = ammo.shotgun / WEAPONS.shotgun.ammoMax;
-  if (smgFill >= 1 && shotgunFill >= 1) return null;
-  if (smgFill <= shotgunFill) return "smg";
-  return "shotgun";
+export function scarcerGun(ammo: Record<WeaponId, number>): GunPickup | null {
+  let chosen: GunPickup | null = null;
+  let lowestFill = 1;
+  for (const id of gunPickups()) {
+    const fill = ammo[id] / WEAPONS[id].ammoMax;
+    if (fill >= 1 || fill >= lowestFill) continue;
+    chosen = id;
+    lowestFill = fill;
+  }
+  return chosen;
+}
+
+export function gunPickupAt(roll: number): GunPickup {
+  const guns = gunPickups();
+  const index = Math.min(guns.length - 1, Math.floor(Math.max(0, roll) * guns.length));
+  return guns[index];
+}
+
+function gunPickups(): GunPickup[] {
+  return WEAPON_ORDER.filter((id): id is GunPickup => id !== "pistol");
 }
 
 function blockedByBuilding(pickup: MagnetPoint, player: MagnetPoint, buildings: Sprite[]): boolean {

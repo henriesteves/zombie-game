@@ -74,6 +74,16 @@ export function shotgun() {
   tone({ type: "triangle", f0: 160, f1: 40, dur: 0.1, vol: 0.35 });
 }
 
+export function rifle() {
+  burst({ dur: 0.08, vol: 0.42, f0: 2800, f1: 220 });
+  tone({ type: "sine", f0: 180, f1: 48, dur: 0.09, vol: 0.55 });
+}
+
+export function magnum() {
+  burst({ dur: 0.18, vol: 0.7, f0: 900, f1: 80 });
+  tone({ type: "sine", f0: 90, f1: 28, dur: 0.2, vol: 0.95 });
+}
+
 export function explosion() {
   burst({ dur: 0.9, vol: 1, f0: 1400, f1: 60 });
   tone({ type: "sine", f0: 80, f1: 25, dur: 0.8, vol: 1 });

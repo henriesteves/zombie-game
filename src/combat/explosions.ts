@@ -8,6 +8,7 @@ import {
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
 import { carHitEffect } from "./car-smoke";
+import { gunPickupAt } from "../pickups/drops";
 import { isInsideFire } from "./fire-burn";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -132,7 +133,7 @@ export class Explosions {
     car.destroy();
     this.host.clearFlow();
     this.playBlast(x, y, CAR_BLAST_RADIUS);
-    this.host.spawnPickup(x, y, Math.random() < 0.5 ? "smg" : "shotgun");
+    this.host.spawnPickup(x, y, gunPickupAt(Math.random()));
     this.ignite(x, y);
     this.applyBlast({ x, y, radius: CAR_BLAST_RADIUS, zombieDamage: CAR_ZOMBIE_DAMAGE, playerDamage: CAR_PLAYER_DAMAGE });
     this.chainFromBlast(x, y, CAR_BLAST_RADIUS);

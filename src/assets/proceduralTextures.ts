@@ -159,6 +159,8 @@ export function generateAllTextures(scene: Phaser.Scene) {
   // ---------- Pickups ----------
   canvasTexture(scene, "pickup_smg", 22, 18, (ctx) => drawAmmoCrate(ctx, "#c9902a", "#4a3410"));
   canvasTexture(scene, "pickup_shotgun", 22, 18, (ctx) => drawAmmoCrate(ctx, "#8a2a2a", "#f2d2a0"));
+  canvasTexture(scene, "pickup_rifle", 22, 18, (ctx) => drawAmmoCrate(ctx, "#3d6d86", "#d5e4ea"));
+  canvasTexture(scene, "pickup_magnum", 22, 18, (ctx) => drawAmmoCrate(ctx, "#b08a3e", "#2a2418"));
   canvasTexture(scene, "building", 128, 96, (ctx) => {
     ctx.fillStyle = "#12151c";
     ctx.fillRect(0, 0, 128, 96);

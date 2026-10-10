@@ -24,7 +24,7 @@ npm run build    # type-check + build de produção
 | Mover | WASD | analógico esquerdo |
 | Mirar | mouse | analógico direito |
 | Atirar | botão esquerdo | analógico direito / R2 |
-| Trocar arma | 1 / 2 / 3 ou roda do mouse | L1 / R1 |
+| Trocar arma | segure Q e aponte, ou 1–5, ou a roda | segure Y e o analógico direito, ou L1 / R1 |
 | Pausar | Esc | Start |
 | Reiniciar | R (após morrer) | A (após morrer) |
 

@@ -10,7 +10,8 @@ import * as sfx from "../audio/sfx";
 import { DashState } from "../combat/dash-state";
 import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
-import { Gun } from "../combat/gun";
+import { Gun, bindWeaponHotkeys } from "../combat/gun";
+import { WeaponWheel } from "../combat/weapon-wheel";
 import { PlayerKnock } from "../combat/player-knock";
 import { drawLaserSight } from "../combat/laser-sight";
 import { SpitVolley } from "../combat/spit-volley";
@@ -31,7 +32,7 @@ import type { HudState } from "./UIScene";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
-type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE", Phaser.Input.Keyboard.Key>;
+type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE" | "Q", Phaser.Input.Keyboard.Key>;
 
 export class GameScene extends Phaser.Scene {
   private player!: Sprite;
@@ -77,6 +78,7 @@ export class GameScene extends Phaser.Scene {
   private paused = false;
   private dash = new DashState();
   private knock = new PlayerKnock();
+  private weaponWheel = new WeaponWheel();
   private dashTrail!: DashTrail;
   private gun!: Gun;
   private spits!: SpitVolley;
@@ -111,6 +113,7 @@ export class GameScene extends Phaser.Scene {
     this.comboUntil = 0;
     this.dash.reset();
     this.knock.reset();
+    this.weaponWheel.reset();
   }
 
   create() {
@@ -188,23 +191,19 @@ export class GameScene extends Phaser.Scene {
       camera: () => this.cameras.main,
     });
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE") as Keys;
+    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE,Q") as Keys;
     this.keys.ESC.on("down", this.onEscape, this);
     this.keys.R.on("down", this.onRestartKey, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.keys.ESC.off("down", this.onEscape, this);
       this.keys.R.off("down", this.onRestartKey, this);
     });
-    kb.on("keydown-ONE", () => this.gun.set("pistol"));
-    kb.on("keydown-TWO", () => this.gun.set("smg"));
-    kb.on("keydown-THREE", () => this.gun.set("shotgun"));
+    bindWeaponHotkeys(kb, (id) => this.gun.set(id));
     this.input.on("wheel", (_p: unknown, _o: unknown, _dx: number, dy: number) => this.gun.cycle(dy > 0 ? 1 : -1));
-    this.physics.add.collider(this.player, this.cars);
-    this.physics.add.collider(this.player, this.barrels);
-    this.physics.add.collider(this.player, this.buildings);
-    this.physics.add.collider(this.zombies, this.cars);
-    this.physics.add.collider(this.zombies, this.barrels);
-    this.physics.add.collider(this.zombies, this.buildings);
+    for (const group of [this.cars, this.barrels, this.buildings]) {
+      this.physics.add.collider(this.player, group);
+      this.physics.add.collider(this.zombies, group);
+    }
     this.physics.add.overlap(this.player, this.zombies, (_p, z) => this.onZombieTouch(z as unknown as Zombie));
     this.physics.add.overlap(this.player, this.pickups, (_p, pk) => this.drops.collect(pk as unknown as Sprite));
     this.physics.add.overlap(this.bullets, this.zombies, (b, z) => this.onBulletZombie(b as unknown as Sprite, z as unknown as Zombie));
@@ -228,6 +227,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (!this.dead && !this.paused) this.expireCombo(time);
     if (this.dead || this.paused) {
+      this.weaponWheel.cancel();
       this.laser.clear();
       this.emitHud();
       return;
@@ -337,6 +337,8 @@ export class GameScene extends Phaser.Scene {
 
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
+    const wheel = this.weaponWheel.sample({ held: this.keys.Q.isDown || Boolean(pad?.Y), aimed: !pad || padAim, aim, ammo: this.ammo, current: this.weapon });
+    if (wheel.chosen) this.gun.set(wheel.chosen);
     const motion = this.dash.velocity(delta, wantsDash, mx, my, aim);
     const knock = this.knock.velocity(delta);
     this.player.setVelocity(knock?.x ?? motion.x, knock?.y ?? motion.y);
@@ -344,8 +346,9 @@ export class GameScene extends Phaser.Scene {
     this.player.setRotation(aim);
     if (time < this.invulnUntil) this.player.setTint(Math.floor(time / 80) % 2 ? 0xff5555 : 0xffffff);
     else this.player.clearTint();
-    if (firing) this.gun.shoot(time, aim);
-    this.drawLaser();
+    if (firing && !wheel.open) this.gun.shoot(time, aim);
+    if (wheel.open) this.laser.clear();
+    else this.drawLaser();
   }
 
   private drawLaser() {
@@ -589,6 +592,7 @@ export class GameScene extends Phaser.Scene {
       threats: this.live.map((zombie) => ({ x: zombie.x, y: zombie.y, kind: zombie.kind })),
       scrollX: this.cameras.main.scrollX,
       scrollY: this.cameras.main.scrollY,
+      wheelOpen: this.weaponWheel.open, wheelHighlight: this.weaponWheel.highlight, loadout: this.ammo,
     };
     this.events.emit("hud", s);
   }
