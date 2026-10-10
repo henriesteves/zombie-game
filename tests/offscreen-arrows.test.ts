@@ -41,4 +41,15 @@ describe("offscreen arrows", () => {
     const arrows = selectOffscreenArrows({ ...view, threats, cap: 3 });
     assert.equal(arrows.length, 3);
   });
+
+  it("colors a walker and a spitter in the same spot differently, and skips one on screen", () => {
+    const [walker] = selectOffscreenArrows({ ...view, threats: [{ x: -200, y: VIEW_H / 2, kind: "walker" }] });
+    const [spitter] = selectOffscreenArrows({ ...view, threats: [{ x: -200, y: VIEW_H / 2, kind: "spitter" }] });
+    assert.ok(walker && spitter);
+    assert.equal(walker.x, spitter.x);
+    assert.equal(walker.y, spitter.y);
+    assert.notEqual(walker.color, spitter.color);
+    const inside = selectOffscreenArrows({ ...view, threats: [{ x: 300, y: 300, kind: "spitter" }] });
+    assert.equal(inside.length, 0);
+  });
 });

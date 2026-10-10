@@ -1,14 +1,18 @@
-import { OFFSCREEN_ARROW_CAP, OFFSCREEN_ARROW_INSET, VIEW_H, VIEW_W } from "../config";
+import {
+  OFFSCREEN_ARROW_CAP, OFFSCREEN_ARROW_COLORS, OFFSCREEN_ARROW_INSET, VIEW_H, VIEW_W, type ZombieKind,
+} from "../config";
 
 export interface ThreatPoint {
   x: number;
   y: number;
+  kind?: ZombieKind;
 }
 
 export interface ScreenArrow {
   x: number;
   y: number;
   angle: number;
+  color: number;
 }
 
 interface ArrowView {
@@ -31,7 +35,7 @@ export function selectOffscreenArrows(view: ArrowView): ScreenArrow[] {
   for (const threat of view.threats) {
     const screenX = threat.x - view.scrollX;
     const screenY = threat.y - view.scrollY;
-    const arrow = edgeArrow(screenX, screenY, view.viewWidth, view.viewHeight, view.inset);
+    const arrow = edgeArrow(screenX, screenY, view.viewWidth, view.viewHeight, view.inset, arrowColor(threat.kind));
     if (!arrow) continue;
     const dx = screenX - centerX;
     const dy = screenY - centerY;
@@ -62,7 +66,13 @@ export function arrowTriangle(arrow: ScreenArrow, length: number, halfWidth: num
   ];
 }
 
-function edgeArrow(screenX: number, screenY: number, viewWidth: number, viewHeight: number, inset: number): ScreenArrow | null {
+export function arrowColor(kind: ZombieKind | undefined): number {
+  return OFFSCREEN_ARROW_COLORS[kind ?? "walker"];
+}
+
+function edgeArrow(
+  screenX: number, screenY: number, viewWidth: number, viewHeight: number, inset: number, color: number,
+): ScreenArrow | null {
   if (screenX >= 0 && screenY >= 0 && screenX <= viewWidth && screenY <= viewHeight) return null;
   const centerX = viewWidth / 2;
   const centerY = viewHeight / 2;
@@ -73,5 +83,5 @@ function edgeArrow(screenX: number, screenY: number, viewWidth: number, viewHeig
   const scaleX = Math.abs(dx) < AXIS_EPSILON ? Number.POSITIVE_INFINITY : halfW / Math.abs(dx);
   const scaleY = Math.abs(dy) < AXIS_EPSILON ? Number.POSITIVE_INFINITY : halfH / Math.abs(dy);
   const scale = Math.min(scaleX, scaleY);
-  return { x: centerX + dx * scale, y: centerY + dy * scale, angle: Math.atan2(dy, dx) };
+  return { x: centerX + dx * scale, y: centerY + dy * scale, angle: Math.atan2(dy, dx), color };
 }

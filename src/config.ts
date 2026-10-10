@@ -108,6 +108,14 @@ export const ZOMBIES: Record<ZombieKind, ZombieDef> = {
   spitter: { texture: "zombie_spitter", hp: 4, speed: 70, damage: 8, score: 25, radius: 14, knockback: 90, charge: null },
 };
 
+export const OFFSCREEN_ARROW_COLORS: Record<ZombieKind, number> = {
+  walker: 0xffe14a,
+  runner: 0xff8a2a,
+  brute: 0xff3030,
+  bloater: 0x9be35a,
+  spitter: 0xff5ad2,
+};
+
 export const BLOATER_CHANCE = 0.08;
 export const SPITTER_CHANCE = 0.06;
 export const SPITTER_RANGE = 220;

@@ -3,7 +3,7 @@ import { LOW_HP_RATIO, VIEW_H, VIEW_W } from "../config";
 import * as sfx from "../audio/sfx";
 import { isAmmoLow } from "../combat/ammo-warning";
 import { lowHealthBeatMs } from "../fx/low-health";
-import { arrowTriangle, hudArrows } from "../fx/offscreen-arrows";
+import { arrowTriangle, hudArrows, type ThreatPoint } from "../fx/offscreen-arrows";
 
 export interface HudState {
   hp: number;
@@ -22,7 +22,7 @@ export interface HudState {
   comboLeft: number;
   paused: boolean;
   dashRecharge: number;
-  threats: { x: number; y: number }[];
+  threats: ThreatPoint[];
   scrollX: number;
   scrollY: number;
 }
@@ -102,7 +102,7 @@ export class UIScene extends Phaser.Scene {
       const shadow = arrowTriangle(arrow, 16, 9);
       const mark = arrowTriangle(arrow, 12, 6);
       this.g.fillStyle(0x140c08, 0.9).fillTriangle(shadow[0], shadow[1], shadow[2], shadow[3], shadow[4], shadow[5]);
-      this.g.fillStyle(0xffe14a, 1).fillTriangle(mark[0], mark[1], mark[2], mark[3], mark[4], mark[5]);
+      this.g.fillStyle(arrow.color, 1).fillTriangle(mark[0], mark[1], mark[2], mark[3], mark[4], mark[5]);
     }
   }
 
