@@ -13,6 +13,12 @@ export function dashDirection(moveX: number, moveY: number, aim: number): DashVe
   return { x: moveX / length, y: moveY / length };
 }
 
+/** 1 when the dash is ready, 0 right after it fires. */
+export function dashRecharge(cooldownLeftMs: number): number {
+  if (cooldownLeftMs <= 0) return 1;
+  return Math.max(0, 1 - cooldownLeftMs / DASH_COOLDOWN_MS);
+}
+
 export class DashState {
   private remainingMs = 0;
   private cooldownMs = 0;
@@ -23,6 +29,10 @@ export class DashState {
 
   get active(): boolean {
     return this.remainingMs > 0;
+  }
+
+  get recharge(): number {
+    return dashRecharge(this.cooldownMs);
   }
 
   reset(): void {

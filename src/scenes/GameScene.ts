@@ -224,12 +224,7 @@ export class GameScene extends Phaser.Scene {
       this.bloodDecals.dry(time);
     }
     if (!this.dead && !this.paused) this.expireCombo(time);
-    if (this.dead) {
-      this.laser.clear();
-      this.emitHud();
-      return;
-    }
-    if (this.paused) {
+    if (this.dead || this.paused) {
       this.laser.clear();
       this.emitHud();
       return;
@@ -583,6 +578,7 @@ export class GameScene extends Phaser.Scene {
       combo: Math.min(COMBO_CAP, this.combo),
       comboLeft: this.combo <= 1 ? 0 : Math.max(0, (this.comboUntil - this.time.now) / COMBO_WINDOW_MS),
       paused: this.paused && !this.dead,
+      dashRecharge: this.dash.recharge,
       threats: this.live.map((zombie) => ({ x: zombie.x, y: zombie.y })),
       scrollX: this.cameras.main.scrollX,
       scrollY: this.cameras.main.scrollY,

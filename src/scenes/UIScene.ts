@@ -19,6 +19,7 @@ export interface HudState {
   combo: number;
   comboLeft: number;
   paused: boolean;
+  dashRecharge: number;
   threats: { x: number; y: number }[];
   scrollX: number;
   scrollY: number;
@@ -87,6 +88,12 @@ export class UIScene extends Phaser.Scene {
     this.beatLeft = interval;
   }
 
+  private drawDashMark(s: HudState) {
+    if (s.dead || s.dashRecharge >= 1) return;
+    this.g.fillStyle(0x000000, 0.6).fillRect(22, 46, 64, 8);
+    this.g.fillStyle(0x7fd4ff, 1).fillRect(24, 48, 60 * s.dashRecharge, 4);
+  }
+
   private drawThreatArrows(s: HudState) {
     const arrows = hudArrows(s.threats, s.scrollX, s.scrollY);
     for (const arrow of arrows) {
@@ -106,6 +113,7 @@ export class UIScene extends Phaser.Scene {
     const critical = s.hp > 0 && pct < LOW_HP_RATIO;
     const alpha = critical ? 0.55 + 0.45 * Math.abs(Math.sin(this.pulse / 160)) : 1;
     g.fillStyle(critical ? 0xd03030 : 0x3aa655, alpha).fillRect(24, 24, 240 * pct, 16);
+    this.drawDashMark(s);
     this.drawThreatArrows(s);
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";

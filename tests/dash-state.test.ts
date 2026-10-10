@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DashState, dashDirection } from "../src/combat/dash-state";
+import { DashState, dashDirection, dashRecharge } from "../src/combat/dash-state";
 import { DASH_COOLDOWN_MS, DASH_MS, DASH_SPEED, PLAYER_SPEED } from "../src/config";
 
 describe("dash", () => {
@@ -45,5 +45,28 @@ describe("dash", () => {
     assert.equal(dash.active, false);
     const walked = dash.velocity(16, false, 1, 0, 0);
     assert.equal(walked.x, PLAYER_SPEED);
+  });
+
+  it("maps the remaining cooldown to a recharge mark", () => {
+    assert.equal(dashRecharge(0), 1);
+    assert.equal(dashRecharge(DASH_COOLDOWN_MS), 0);
+    const middle = dashRecharge(DASH_COOLDOWN_MS / 2);
+    assert.ok(middle > 0 && middle < 1);
+  });
+
+  it("reads the mark from the dash's own cooldown and holds it while not advanced", () => {
+    const dash = new DashState();
+    assert.equal(dash.recharge, 1);
+    dash.velocity(16, true, 1, 0, 0);
+    assert.equal(dash.recharge, 0);
+    dash.velocity(DASH_COOLDOWN_MS / 2, false, 1, 0, 0);
+    const held = dash.recharge;
+    assert.ok(held > 0 && held < 1);
+    assert.equal(dash.recharge, held);
+    dash.velocity(DASH_COOLDOWN_MS, false, 1, 0, 0);
+    assert.equal(dash.recharge, 1);
+    assert.equal(dash.velocity(16, true, 1, 0, 0).x, DASH_SPEED);
+    dash.reset();
+    assert.equal(dash.recharge, 1);
   });
 });
