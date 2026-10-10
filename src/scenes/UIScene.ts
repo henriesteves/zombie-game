@@ -8,9 +8,10 @@ export interface HudState {
   ammo: number;
   score: number;
   kills: number;
-  seconds: number;
   dead: boolean;
-  alarm: boolean;
+  wave: number;
+  phaseSeconds: number;
+  banner: string;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -55,14 +56,16 @@ export class UIScene extends Phaser.Scene {
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
     this.weaponText.setText(`${s.weapon}  ${ammo}`);
 
-    const m = Math.floor(s.seconds / 60);
-    const sec = String(Math.floor(s.seconds % 60)).padStart(2, "0");
-    this.scoreText.setText(`SCORE ${s.score}\nKILLS ${s.kills}\n${m}:${sec}`);
+    const sec = String(Math.ceil(s.phaseSeconds)).padStart(2, "0");
+    this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n0:${sec}`);
 
     this.overText.setVisible(s.dead);
     if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\n\npressione R para reiniciar`);
-    const showAlarm = s.alarm && !s.dead;
-    this.alertText.setVisible(showAlarm);
-    if (showAlarm) this.alertText.setAlpha(0.55 + 0.45 * Math.abs(Math.sin(s.seconds * 8)));
+    const showBanner = s.banner !== "" && !s.dead;
+    this.alertText.setVisible(showBanner);
+    if (!showBanner) return;
+    this.alertText.setText(s.banner);
+    this.alertText.setColor(s.banner === "RESPIRO" ? "#e2c14a" : "#ff4040");
+    this.alertText.setAlpha(0.55 + 0.45 * Math.abs(Math.sin(s.phaseSeconds * 8)));
   }
 }

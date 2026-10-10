@@ -46,6 +46,15 @@ function drawCar(ctx: CanvasRenderingContext2D, W: number, H: number, color: str
 
 export const CAR_COLORS = ["red", "blue", "grey", "yellow"] as const;
 
+function drawAmmoCrate(ctx: CanvasRenderingContext2D, fill: string, mark: string) {
+  ctx.fillStyle = "#101010";
+  ctx.fillRect(0, 0, 22, 18);
+  ctx.fillStyle = fill;
+  ctx.fillRect(1, 1, 20, 16);
+  ctx.fillStyle = mark;
+  for (let i = 0; i < 4; i++) ctx.fillRect(3 + i * 5, 4, 3, 10);
+}
+
 export function generateAllTextures(scene: Phaser.Scene) {
   // ---------- Personagens (pixel art em código) ----------
   makeTexture(scene, "player", fromHalf(PLAYER_HALF), PLAYER_PALETTE, 3);
@@ -140,12 +149,8 @@ export function generateAllTextures(scene: Phaser.Scene) {
   });
 
   // ---------- Pickups ----------
-  canvasTexture(scene, "pickup_ammo", 22, 18, (ctx) => {
-    ctx.fillStyle = "#101010"; ctx.fillRect(0, 0, 22, 18);
-    ctx.fillStyle = "#c9902a"; ctx.fillRect(1, 1, 20, 16);
-    ctx.fillStyle = "#4a3410";
-    for (let i = 0; i < 4; i++) ctx.fillRect(3 + i * 5, 4, 3, 10);
-  });
+  canvasTexture(scene, "pickup_smg", 22, 18, (ctx) => drawAmmoCrate(ctx, "#c9902a", "#4a3410"));
+  canvasTexture(scene, "pickup_shotgun", 22, 18, (ctx) => drawAmmoCrate(ctx, "#8a2a2a", "#f2d2a0"));
   canvasTexture(scene, "pickup_health", 22, 22, (ctx) => {
     ctx.fillStyle = "#101010"; ctx.fillRect(0, 0, 22, 22);
     ctx.fillStyle = "#f2f2f2"; ctx.fillRect(1, 1, 20, 20);
