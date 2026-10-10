@@ -1,8 +1,9 @@
 import Phaser from "phaser";
 import {
-  ALARM_DURATION, ALARM_SPAWN_COUNT, EXPLOSION_RADIUS, PLAYER_MAX_HP, PLAYER_SPEED, VIEW_H, VIEW_W,
+  ALARM_DURATION, ALARM_SPAWN_COUNT, EXPLOSION_RADIUS, FLOW_REBUILD_MS, PLAYER_MAX_HP, PLAYER_SPEED, VIEW_H, VIEW_W,
   WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, type WeaponId, type ZombieKind,
 } from "../config";
+import { FlowField } from "../ai/flow-field";
 import { CAR_COLORS } from "../assets/proceduralTextures";
 import * as sfx from "../audio/sfx";
 import { Zombie } from "../entities/Zombie";
@@ -30,7 +31,9 @@ export class GameScene extends Phaser.Scene {
   private keys!: Keys;
 
   private decals: Phaser.GameObjects.Image[] = [];
-  private live: Zombie[] = []; // buffer reutilizado a cada frame (sem alocação)
+  private live: Zombie[] = [];
+  private flow = new FlowField();
+  private flowReadyAt = 0;
 
   // estado da partida (reiniciado em resetState)
   private hp = PLAYER_MAX_HP;
@@ -63,6 +66,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimer = 0;
     this.padR1 = false;
     this.padL1 = false;
+    this.flowReadyAt = 0;
     this.decals = [];
   }
 
@@ -142,7 +146,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsed += delta / 1000;
     this.handlePlayer(time);
     this.updateSpawns(delta);
-    this.updateZombies(time, delta);
+    this.updateZombies(time);
     this.updateBullets(time);
     this.updateProps(time);
     this.light.flash = Math.max(0, this.light.flash - delta / 90);
@@ -320,82 +324,92 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
-  private updateZombies(time: number, delta: number) {
+  private updateZombies(time: number) {
+    const live = this.collectLiveZombies();
+    this.separateZombies(live);
+    this.rebuildFlow(time);
+    for (const zombie of live) this.steerZombie(zombie, time);
+  }
+
+  private collectLiveZombies(): Zombie[] {
     const live = this.live;
     live.length = 0;
-    for (const c of this.zombies.getChildren()) {
-      const z = c as Zombie;
-      if (z.active) { z.sepX = 0; z.sepY = 0; live.push(z); }
+    for (const child of this.zombies.getChildren()) {
+      const zombie = child as Zombie;
+      if (!zombie.active) continue;
+      zombie.sepX = 0;
+      zombie.sepY = 0;
+      live.push(zombie);
     }
+    return live;
+  }
 
-    // Separação O(n²) simples (n ≤ 160): evita todos empilharem no mesmo ponto
+  private separateZombies(live: Zombie[]) {
     for (let i = 0; i < live.length; i++) {
-      const a = live[i];
+      const left = live[i];
       for (let j = i + 1; j < live.length; j++) {
-        const b = live[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 > 1600 || d2 === 0) continue;
-        const d = Math.sqrt(d2);
-        const f = (40 - d) / 40;
-        const nx = (dx / d) * f;
-        const ny = (dy / d) * f;
-        a.sepX += nx; a.sepY += ny;
-        b.sepX -= nx; b.sepY -= ny;
+        const right = live[j];
+        const dx = left.x - right.x;
+        const dy = left.y - right.y;
+        const distanceSq = dx * dx + dy * dy;
+        if (distanceSq > 1600 || distanceSq === 0) continue;
+        const distance = Math.sqrt(distanceSq);
+        const push = (40 - distance) / 40;
+        const nx = (dx / distance) * push;
+        const ny = (dy / distance) * push;
+        left.sepX += nx;
+        left.sepY += ny;
+        right.sepX -= nx;
+        right.sepY -= ny;
       }
     }
+  }
 
-    const alarms: Sprite[] = [];
-    for (const c of this.cars.getChildren()) {
-      const car = c as Sprite;
-      if ((car.getData("alarmUntil") as number) > time) alarms.push(car);
+  private rebuildFlow(time: number) {
+    if (time < this.flowReadyAt) return;
+    this.flowReadyAt = time + FLOW_REBUILD_MS;
+    this.flow.clear();
+    for (const child of this.cars.getChildren()) {
+      const car = child as Sprite;
+      this.flow.blockRect(car.x, car.y, car.width * 0.5, car.height * 0.5);
     }
-
-    const px = this.player.x;
-    const py = this.player.y;
-    for (const z of live) {
-      const body = z.body as Body;
-      if (time < z.hitUntil) { body.velocity.scale(0.9); continue; } // knockback em andamento
-      if (z.isTinted) z.clearTint();
-
-      // Alvo: o jogador, ou um carro com alarme (se o jogador não estiver perto)
-      let tx = px;
-      let ty = py;
-      if (alarms.length && Phaser.Math.Distance.Squared(z.x, z.y, px, py) > 260 * 260) {
-        for (const car of alarms) {
-          if (Phaser.Math.Distance.Squared(z.x, z.y, car.x, car.y) < 1000 * 1000) { tx = car.x; ty = car.y; break; }
-        }
-      }
-
-      let dx = tx - z.x;
-      let dy = ty - z.y;
-      const dist = Math.hypot(dx, dy) || 1;
-      dx /= dist; dy /= dist;
-      z.rotation = Math.atan2(dy, dx);
-
-      // Contorno de obstáculo: se ficou encostado em carro/barril, gira ~63° para o seu lado
-      if (!body.touching.none) z.stuckMs += delta;
-      else z.stuckMs = Math.max(0, z.stuckMs - delta * 2);
-      if (z.stuckMs > 120) {
-        const rot = z.side * 1.1;
-        const cs = Math.cos(rot);
-        const sn = Math.sin(rot);
-        const nx = dx * cs - dy * sn;
-        const ny = dx * sn + dy * cs;
-        dx = nx; dy = ny;
-      }
-
-      const wob = Math.sin(time / 300 + z.wobble) * 0.25; // andar "torto"
-      let vx = dx - dy * wob + z.sepX * 1.2;
-      let vy = dy + dx * wob + z.sepY * 1.2;
-      const len = Math.hypot(vx, vy) || 1;
-      vx = (vx / len) * z.speed;
-      vy = (vy / len) * z.speed;
-      z.setVelocity(vx, vy);
-
-      if (dist < 700 && Math.random() < 0.00004) sfx.groan(z.kind === "brute" ? 0.6 : 1);
+    for (const child of this.barrels.getChildren()) {
+      const barrel = child as Sprite;
+      if (!barrel.active) continue;
+      this.flow.blockCircle(barrel.x, barrel.y, 12);
     }
+    this.flow.rebuild([{ x: this.player.x, y: this.player.y }]);
+  }
+
+  private steerZombie(zombie: Zombie, time: number) {
+    const body = zombie.body as Body;
+    if (time < zombie.hitUntil) {
+      zombie.interruptCharge(time);
+      body.velocity.scale(0.9);
+      return;
+    }
+    if (zombie.isTinted) zombie.clearTint();
+    const step = zombie.advanceCharge(time, this.player.x, this.player.y);
+    if (step === "start") sfx.bruteWindup();
+    if (step) return;
+    const aim = this.aimDirection(zombie);
+    const wobble = Math.sin(time / 300 + zombie.wobble) * 0.25;
+    const vx = aim.x - aim.y * wobble + zombie.sepX * 1.2;
+    const vy = aim.y + aim.x * wobble + zombie.sepY * 1.2;
+    const length = Math.hypot(vx, vy) || 1;
+    zombie.setRotation(Math.atan2(aim.y, aim.x));
+    zombie.setVelocity((vx / length) * zombie.speed, (vy / length) * zombie.speed);
+    const dist = Math.hypot(this.player.x - zombie.x, this.player.y - zombie.y);
+    if (dist < 700 && Math.random() < 0.00004) sfx.groan(zombie.kind === "brute" ? 0.6 : 1);
+  }
+
+  private aimDirection(zombie: Zombie): { x: number; y: number } {
+    const flow = this.flow.sample(zombie.x, zombie.y);
+    if (flow) return flow;
+    const dx = this.player.x - zombie.x;
+    const dy = this.player.y - zombie.y;
+    const length = Math.hypot(dx, dy) || 1;
+    return { x: dx / length, y: dy / length };
   }
 
   private damageZombie(z: Zombie, dmg: number, angle: number) {

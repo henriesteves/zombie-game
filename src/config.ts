@@ -33,21 +33,37 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
 // ---------- Zumbis ----------
 export type ZombieKind = "walker" | "runner" | "brute";
 
+export interface ZombieCharge {
+  range: number;
+  windupMs: number;
+  dashMs: number;
+  speed: number;
+  cooldownMs: number;
+}
+
 export interface ZombieDef {
   texture: string;
   hp: number;
   speed: number;
   damage: number;
   score: number;
-  radius: number; // raio do corpo de colisão (px)
+  radius: number;
   knockback: number;
+  charge: ZombieCharge | null;
 }
 
 export const ZOMBIES: Record<ZombieKind, ZombieDef> = {
-  walker: { texture: "zombie_walker", hp: 3, speed: 62, damage: 8, score: 10, radius: 15, knockback: 110 },
-  runner: { texture: "zombie_runner", hp: 2, speed: 135, damage: 6, score: 15, radius: 13, knockback: 140 },
-  brute: { texture: "zombie_brute", hp: 16, speed: 46, damage: 25, score: 60, radius: 24, knockback: 25 },
+  walker: { texture: "zombie_walker", hp: 3, speed: 62, damage: 8, score: 10, radius: 15, knockback: 110, charge: null },
+  runner: { texture: "zombie_runner", hp: 2, speed: 135, damage: 6, score: 15, radius: 13, knockback: 140, charge: null },
+  brute: {
+    texture: "zombie_brute", hp: 16, speed: 46, damage: 25, score: 60, radius: 22, knockback: 25,
+    charge: { range: 210, windupMs: 480, dashMs: 320, speed: 340, cooldownMs: 2600 },
+  },
 };
+
+export const FLOW_CELL = 32;
+export const FLOW_REBUILD_MS = 180;
+export const FLOW_CLEARANCE = 12;
 
 export const EXPLOSION_RADIUS = 130;
 export const ALARM_DURATION = 6000;

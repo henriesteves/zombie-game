@@ -98,7 +98,10 @@ export function pickup() {
   tone({ type: "sine", f0: 990, f1: 1040, dur: 0.1, vol: 0.3, delay: 0.07 });
 }
 
-/** pitch < 1 = mais grave (brute). Limitado a 1 grunhido a cada 250 ms. */
+export function bruteWindup() {
+  tone({ type: "sawtooth", f0: 70, f1: 150, dur: 0.42, vol: 0.22 });
+}
+
 export function groan(pitch = 1) {
   if (!ctx || !master) return;
   const now = performance.now();

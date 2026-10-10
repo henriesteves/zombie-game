@@ -65,5 +65,14 @@ export const RUNNER_HALF = [
 ];
 export const RUNNER_PALETTE: Palette = { o: "#2a1010", R: "#8a3a2a", g: "#c9a27a", r: "#6a0f0f" };
 
-// O brute reaproveita a matriz do walker em escala maior, com outra paleta.
-export const BRUTE_PALETTE: Palette = { o: "#1a0f0f", c: "#3a2a3a", g: "#7a4a4a", r: "#c01818" };
+export const BRUTE_HALF = [
+  "................",
+  "..oooooooooooo..",
+  ".oBBBBBBBBBBBBo.",
+  ".oBBBBmmmmBBBBo.",
+  "oBBBBmmmmmmBBBBo",
+  "oBBBmmmmmmmmBBBg",
+  "oBBmmmmmmmmmmBBg",
+  ".oBmmmmmmmmmBggg",
+];
+export const BRUTE_PALETTE: Palette = { o: "#1a0a0a", B: "#4a2428", m: "#8a3030", g: "#e8d0c0" };
