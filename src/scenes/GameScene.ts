@@ -239,7 +239,7 @@ export class GameScene extends Phaser.Scene {
     this.advanceWave(delta);
     this.updateSpawns(delta);
     this.updateZombies(time);
-    this.spits.advance(time, this.live, this.player);
+    this.spits.advance(time, delta, this.live, this.player);
     this.popups.advance(delta);
     this.updateBullets(time);
     this.updateProps(time);

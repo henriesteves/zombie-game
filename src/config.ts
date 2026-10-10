@@ -111,6 +111,7 @@ export const BLOATER_CHANCE = 0.08;
 export const SPITTER_CHANCE = 0.06;
 export const SPITTER_RANGE = 220;
 export const SPITTER_COOLDOWN_MS = 1400;
+export const SPITTER_WINDUP_MS = 520;
 export const SPIT_SPEED = 180;
 export const SPIT_LIFE_MS = 1600;
 export const SPIT_DAMAGE = 12;
