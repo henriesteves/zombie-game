@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
-  DROP_HEALTH, DROP_MAGNUM, DROP_RIFLE, DROP_SHOTGUN, DROP_SMG, HEALTH_PICKUP, PICKUP_LIFE_MS, PLAYER_MAX_HP,
-  WEAPON_ORDER, WEAPONS, WORLD_H, WORLD_W, type GunPickup, type PickupKind, type WeaponId,
+  DROP_GRENADE, DROP_HEALTH, DROP_MAGNUM, DROP_RIFLE, DROP_SHOTGUN, DROP_SMG, GRENADE_PICKUP, HEALTH_PICKUP,
+  PICKUP_LIFE_MS, PLAYER_MAX_HP, WEAPON_ORDER, WEAPONS, WORLD_H, WORLD_W, type GunPickup, type PickupKind, type WeaponId,
 } from "../config";
 import { isExpired, remainMs } from "../time/remain-ms";
 import { acceptsPickup, magnetStep, type MagnetPoint } from "./magnet";
@@ -14,6 +14,8 @@ export interface PickupHost {
   getHp(): number;
   setHp(hp: number): void;
   ammo: Record<WeaponId, number>;
+  grenadeCount(): number;
+  addGrenades(amount: number): void;
   playPickup(): void;
 }
 
@@ -39,7 +41,7 @@ export class PickupDrops {
   }
 
   private pull(pickup: Sprite, player: MagnetPoint, buildings: Sprite[], deltaMs: number) {
-    const accepted = acceptsPickup(pickup.getData("kind") as PickupKind, this.host);
+      const accepted = acceptsPickup(pickup.getData("kind") as PickupKind, pickupNeeds(this.host));
     const next = magnetStep(pickup, player, accepted, deltaMs);
     if (next.x === pickup.x && next.y === pickup.y) return;
     if (blockedByBuilding(pickup, player, buildings)) return;
@@ -80,6 +82,7 @@ export function rollDrop(roll: number): PickupKind | null {
     { kind: "shotgun", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN },
     { kind: "rifle", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN + DROP_RIFLE },
     { kind: "magnum", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN + DROP_RIFLE + DROP_MAGNUM },
+    { kind: "grenade", until: DROP_HEALTH + DROP_SMG + DROP_SHOTGUN + DROP_RIFLE + DROP_MAGNUM + DROP_GRENADE },
   ];
   for (const band of bands) {
     if (roll < band.until) return band.kind;
@@ -117,10 +120,18 @@ function blockedByBuilding(pickup: MagnetPoint, player: MagnetPoint, buildings: 
   return false;
 }
 
+function pickupNeeds(host: PickupHost) {
+  return { getHp: () => host.getHp(), ammo: host.ammo, grenades: host.grenadeCount() };
+}
+
 function applyPickup(kind: PickupKind, host: PickupHost): boolean {
-  if (!acceptsPickup(kind, host)) return false;
+  if (!acceptsPickup(kind, pickupNeeds(host))) return false;
   if (kind === "health") {
     host.setHp(Math.min(PLAYER_MAX_HP, host.getHp() + HEALTH_PICKUP));
+    return true;
+  }
+  if (kind === "grenade") {
+    host.addGrenades(GRENADE_PICKUP);
     return true;
   }
   host.ammo[kind] = Math.min(WEAPONS[kind].ammoMax, host.ammo[kind] + WEAPONS[kind].ammoPerPickup);

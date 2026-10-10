@@ -157,6 +157,15 @@ export function generateAllTextures(scene: Phaser.Scene) {
   canvasTexture(scene, "pickup_shotgun", 22, 18, (ctx) => drawAmmoCrate(ctx, "#8a2a2a", "#f2d2a0"));
   canvasTexture(scene, "pickup_rifle", 22, 18, (ctx) => drawAmmoCrate(ctx, "#3d6d86", "#d5e4ea"));
   canvasTexture(scene, "pickup_magnum", 22, 18, (ctx) => drawAmmoCrate(ctx, "#b08a3e", "#2a2418"));
+  canvasTexture(scene, "pickup_grenade", 22, 18, (ctx) => drawAmmoCrate(ctx, "#2f4a28", "#e6e2c8"));
+  canvasTexture(scene, "grenade", 12, 12, (ctx) => {
+    ctx.fillStyle = "#2f4a28";
+    ctx.beginPath();
+    ctx.arc(6, 7, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#d8d2c4";
+    ctx.fillRect(5, 1, 2, 3);
+  });
   canvasTexture(scene, "building", 128, 96, (ctx) => {
     ctx.fillStyle = "#12151c";
     ctx.fillRect(0, 0, 128, 96);

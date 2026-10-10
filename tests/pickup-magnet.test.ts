@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PICKUP_MAGNET_RADIUS, PLAYER_MAX_HP, WEAPONS, startingAmmo } from "../src/config";
+import { GRENADE_MAX, PICKUP_MAGNET_RADIUS, PLAYER_MAX_HP, WEAPONS, startingAmmo } from "../src/config";
 import { acceptsPickup, magnetStep } from "../src/pickups/magnet";
 
 const player = { x: 500, y: 500 };
@@ -34,10 +34,12 @@ describe("pickup magnet", () => {
 
   it("refuses health at full hp and ammo for a full gun", () => {
     const ammo = startingAmmo();
-    assert.equal(acceptsPickup("health", { getHp: () => PLAYER_MAX_HP, ammo }), false);
-    assert.equal(acceptsPickup("health", { getHp: () => PLAYER_MAX_HP - 1, ammo }), true);
-    assert.equal(acceptsPickup("smg", { getHp: () => 1, ammo }), true);
+    assert.equal(acceptsPickup("health", { getHp: () => PLAYER_MAX_HP, ammo, grenades: 0 }), false);
+    assert.equal(acceptsPickup("health", { getHp: () => PLAYER_MAX_HP - 1, ammo, grenades: 0 }), true);
+    assert.equal(acceptsPickup("smg", { getHp: () => 1, ammo, grenades: 0 }), true);
     ammo.smg = WEAPONS.smg.ammoMax;
-    assert.equal(acceptsPickup("smg", { getHp: () => 1, ammo }), false);
+    assert.equal(acceptsPickup("smg", { getHp: () => 1, ammo, grenades: 0 }), false);
+    assert.equal(acceptsPickup("grenade", { getHp: () => 1, ammo, grenades: GRENADE_MAX }), false);
+    assert.equal(acceptsPickup("grenade", { getHp: () => 1, ammo, grenades: GRENADE_MAX - 1 }), true);
   });
 });

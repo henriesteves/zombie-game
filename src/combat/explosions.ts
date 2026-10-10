@@ -4,7 +4,7 @@ import {
   BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE, BLAST_STOP_MS, BLOATER_BLAST_RADIUS, BLOATER_PLAYER_DAMAGE,
   BLOATER_ZOMBIE_DAMAGE, CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_FIRE_MS, CAR_FIRE_PLAYER_DAMAGE,
   CAR_FIRE_RADIUS, CAR_FIRE_TICK_MS, CAR_FIRE_ZOMBIE_DAMAGE, CAR_PLAYER_DAMAGE,
-  CAR_ZOMBIE_DAMAGE, EXPLOSION_RADIUS, type PickupKind,
+  CAR_ZOMBIE_DAMAGE, EXPLOSION_RADIUS, GRENADE_PLAYER_DAMAGE, GRENADE_RADIUS, GRENADE_ZOMBIE_DAMAGE, type PickupKind,
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
 import { advanceDelayedCalls } from "./blast-delay";
@@ -134,6 +134,14 @@ export class Explosions {
     this.applyBlast({ x, y, radius: EXPLOSION_RADIUS, zombieDamage: BARREL_ZOMBIE_DAMAGE, playerDamage: BARREL_PLAYER_DAMAGE });
     this.chainBarrels(x, y, EXPLOSION_RADIUS * BARREL_CHAIN_REACH);
     this.alarmCars(x, y, EXPLOSION_RADIUS * BARREL_ALARM_REACH);
+  }
+
+  detonateGrenade(x: number, y: number) {
+    this.playBlast(x, y, GRENADE_RADIUS);
+    this.applyBlast({
+      x, y, radius: GRENADE_RADIUS, zombieDamage: GRENADE_ZOMBIE_DAMAGE, playerDamage: GRENADE_PLAYER_DAMAGE,
+    });
+    this.chainFromBlast(x, y, GRENADE_RADIUS);
   }
 
   detonateBloater(x: number, y: number) {

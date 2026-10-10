@@ -1,5 +1,5 @@
 import {
-  PICKUP_MAGNET_RADIUS, PICKUP_MAGNET_SPEED, PLAYER_MAX_HP, WEAPONS, type PickupKind, type WeaponId,
+  GRENADE_MAX, PICKUP_MAGNET_RADIUS, PICKUP_MAGNET_SPEED, PLAYER_MAX_HP, WEAPONS, type PickupKind, type WeaponId,
 } from "../config";
 
 export interface MagnetPoint {
@@ -10,11 +10,13 @@ export interface MagnetPoint {
 export interface PickupNeeds {
   getHp(): number;
   ammo: Record<WeaponId, number>;
+  grenades: number;
 }
 
-/** A full bar or a full gun refuses its pickup. */
+/** A full bar, a full gun, or a full grenade belt refuses its pickup. */
 export function acceptsPickup(kind: PickupKind, needs: PickupNeeds): boolean {
   if (kind === "health") return needs.getHp() < PLAYER_MAX_HP;
+  if (kind === "grenade") return needs.grenades < GRENADE_MAX;
   return needs.ammo[kind] < WEAPONS[kind].ammoMax;
 }
 

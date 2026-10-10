@@ -7,11 +7,12 @@ import {
 import { FlowField } from "../ai/flow-field";
 import { updateHorde } from "../ai/horde";
 import * as sfx from "../audio/sfx";
-import { tickCarAlarm } from "../combat/car-alarm";
+import { paintCarAlarms } from "../combat/car-alarm";
 import { DashState } from "../combat/dash-state";
 import { Combo } from "../combat/combo";
 import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
+import { Grenades } from "../combat/grenades";
 import { Gun, bindWeaponHotkeys } from "../combat/gun";
 import { WeaponWheel } from "../combat/weapon-wheel";
 import { PlayerKnock } from "../combat/player-knock";
@@ -39,7 +40,7 @@ import type { HudState } from "./UIScene";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
-type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE" | "Q" | "ENTER" | "UP" | "DOWN" | "LEFT" | "RIGHT", Phaser.Input.Keyboard.Key>;
+type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE" | "Q" | "G" | "ENTER" | "UP" | "DOWN" | "LEFT" | "RIGHT", Phaser.Input.Keyboard.Key>;
 
 export class GameScene extends Phaser.Scene {
   private player!: Sprite;
@@ -88,6 +89,7 @@ export class GameScene extends Phaser.Scene {
   private encounter = new FirstEncounter();
   private dashTrail!: DashTrail;
   private gun!: Gun;
+  private grenades!: Grenades;
   private spits!: SpitVolley;
   private popups!: ScorePopups;
   private corpses!: Corpses;
@@ -165,6 +167,8 @@ export class GameScene extends Phaser.Scene {
       getHp: () => this.hp,
       setHp: (hp) => { this.hp = hp; },
       ammo: this.ammo,
+      grenadeCount: () => this.grenades.count,
+      addGrenades: (amount) => this.grenades.add(amount),
       playPickup: () => sfx.pickup(),
     });
     this.explosions = new Explosions(this, {
@@ -182,6 +186,7 @@ export class GameScene extends Phaser.Scene {
       sparks: this.sparks,
       light: this.light,
     });
+    this.grenades = new Grenades(this, () => this.player, (x, y) => this.explosions.detonateGrenade(x, y));
     cam.on(Phaser.Cameras.Scene2D.Events.PRE_RENDER, this.syncLight, this);
     this.dashTrail = new DashTrail(this);
     this.gun = new Gun({
@@ -195,7 +200,7 @@ export class GameScene extends Phaser.Scene {
       camera: () => this.cameras.main,
     });
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE,Q,ENTER,UP,DOWN,LEFT,RIGHT") as Keys;
+    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE,Q,G,ENTER,UP,DOWN,LEFT,RIGHT") as Keys;
     sfx.setMasterVolume(this.pauseMenu.volume);
     this.keys.ESC.on("down", this.togglePause, this);
     this.keys.R.on("down", this.onRestartKey, this);
@@ -244,6 +249,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsed += delta / 1000;
     this.invulnLeft = remainMs(this.invulnLeft, delta);
     this.gun.tick(delta);
+    this.grenades.advance(delta);
     this.combo.tick(delta);
     this.encounter.tick(delta);
     this.handlePlayer(delta, wantsDash);
@@ -356,6 +362,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setRotation(aim);
     if (this.invulnLeft > 0) this.player.setTint(Math.floor(this.invulnLeft / PLAYER_HURT_BLINK_MS) % 2 ? 0xff5555 : 0xffffff);
     else this.player.clearTint();
+    this.grenades.press(aim, this.keys.G.isDown || Boolean(pad?.X));
     if (firing && !wheel.open) this.gun.shoot(aim);
     if (wheel.open) this.laser.clear();
     else this.drawLaser();
@@ -384,6 +391,7 @@ export class GameScene extends Phaser.Scene {
     this.knock.reset();
     this.dash.cancel();
     this.dashTrail.reset();
+    this.grenades.clear();
     this.bestScore = recordHighScore(this.score);
     this.physics.pause();
     this.player.setTexture(deadTexture("player")).clearTint();
@@ -539,21 +547,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateProps(delta: number) {
-    this.updateAlarms(delta);
+    paintCarAlarms(this.cars.getChildren() as Sprite[], delta);
     this.drops.update(this.elapsed * 1000, delta, this.player, this.buildings.getChildren() as Sprite[]);
-  }
-
-  private updateAlarms(delta: number) {
-    for (const c of this.cars.getChildren()) {
-      const car = c as Sprite;
-      const frame = tickCarAlarm((car.getData("alarmLeft") as number) || 0, (car.getData("alarmBlink") as number) || 0, delta);
-      car.setData("alarmLeft", frame.left).setData("alarmBlink", frame.blink);
-      if (frame.tint === null) {
-        if (car.getData("blink")) { car.clearTint(); car.setData("blink", false); }
-        continue;
-      }
-      car.setTint(frame.tint).setData("blink", true);
-    }
   }
 
   private waveBanner(): string {
@@ -573,6 +568,7 @@ export class GameScene extends Phaser.Scene {
       weapon: WEAPONS[this.weapon].name,
       ammo: this.ammo[this.weapon],
       ammoMax: WEAPONS[this.weapon].ammoMax,
+      grenades: this.grenades.count,
       score: this.score,
       bestScore: this.bestScore,
       kills: this.kills,

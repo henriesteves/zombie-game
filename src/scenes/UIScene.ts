@@ -16,6 +16,7 @@ export interface HudState {
   weapon: string;
   ammo: number;
   ammoMax: number;
+  grenades: number;
   score: number;
   bestScore: number;
   kills: number;
@@ -164,7 +165,7 @@ export class UIScene extends Phaser.Scene {
     this.wheelView.paint(g, s);
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
-    this.weaponText.setText(`${s.weapon}  ${ammo}`);
+    this.weaponText.setText(`${s.weapon}  ${ammo}   GRANADAS ${s.grenades}`);
     this.weaponText.setColor(isAmmoLow(s.ammo, s.ammoMax) ? "#ffb02e" : "#e8e8e8");
 
     const sec = String(Math.ceil(s.phaseSeconds)).padStart(2, "0");

@@ -82,8 +82,19 @@ export function startingAmmo(): Record<WeaponId, number> {
   };
 }
 
+export const GRENADE_START = 3;
+export const GRENADE_MAX = 5;
+export const GRENADE_SPEED = 420;
+export const GRENADE_FUSE_MS = 700;
+export const GRENADE_COOLDOWN_MS = 450;
+export const GRENADE_SPAWN_OFFSET = 36;
+export const GRENADE_RADIUS = 150;
+export const GRENADE_ZOMBIE_DAMAGE = 16;
+export const GRENADE_PLAYER_DAMAGE = 22;
+export const GRENADE_PICKUP = 1;
+
 export type GunPickup = Exclude<WeaponId, "pistol">;
-export type PickupKind = "health" | GunPickup;
+export type PickupKind = "health" | "grenade" | GunPickup;
 export const AMMO_LOW_RATIO = 0.2;
 
 // ---------- Zumbis ----------
@@ -187,3 +198,4 @@ export const DROP_SMG = 0.09;
 export const DROP_SHOTGUN = 0.07;
 export const DROP_RIFLE = 0.05;
 export const DROP_MAGNUM = 0.03;
+export const DROP_GRENADE = 0.04;
