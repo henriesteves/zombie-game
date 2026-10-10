@@ -14,6 +14,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   wobble = 0;
   sepX = 0;
   sepY = 0;
+  suppressBlast = false;
   chargeState: ChargeState = "idle";
   chargeUntil = 0;
   chargeReadyAt = 0;
@@ -32,6 +33,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.damage = def.damage;
     this.hitUntil = 0;
     this.wobble = Math.random() * Math.PI * 2;
+    this.suppressBlast = false;
     this.chargeState = "idle";
     this.chargeUntil = 0;
     this.chargeReadyAt = 0;

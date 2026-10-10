@@ -7,6 +7,7 @@ export interface HudState {
   weapon: string;
   ammo: number;
   score: number;
+  bestScore: number;
   kills: number;
   dead: boolean;
   wave: number;
@@ -14,6 +15,7 @@ export interface HudState {
   banner: string;
   combo: number;
   comboLeft: number;
+  paused: boolean;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -24,6 +26,7 @@ export class UIScene extends Phaser.Scene {
   private overText!: Phaser.GameObjects.Text;
   private alertText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
+  private pauseText!: Phaser.GameObjects.Text;
   private shownCombo = 0;
 
   constructor() {
@@ -40,6 +43,9 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
     this.comboText = this.add.text(VIEW_W / 2, VIEW_H * 0.62, "", {
       fontFamily: "monospace", fontSize: "54px", color: "#f2efe4",
+    }).setOrigin(0.5).setVisible(false);
+    this.pauseText = this.add.text(VIEW_W / 2, VIEW_H / 2, "PAUSA", {
+      fontFamily: "monospace", fontSize: "64px", color: "#f2efe4",
     }).setOrigin(0.5).setVisible(false);
     this.alertText = this.add.text(VIEW_W / 2, 48, "HORDA A CAMINHO", {
       fontFamily: "monospace", fontSize: "22px", color: "#ff4040", backgroundColor: "rgba(0,0,0,0.55)",
@@ -64,7 +70,8 @@ export class UIScene extends Phaser.Scene {
     this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n0:${sec}`);
 
     this.overText.setVisible(s.dead);
-    if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\n\npressione R para reiniciar`);
+    this.pauseText.setVisible(s.paused && !s.dead);
+    if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\n\npressione R para reiniciar`);
     const showCombo = s.combo >= 2 && !s.dead;
     this.comboText.setVisible(showCombo);
     if (!showCombo) this.shownCombo = 0;

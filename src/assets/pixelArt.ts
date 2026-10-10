@@ -76,3 +76,15 @@ export const BRUTE_HALF = [
   ".oBmmmmmmmmmBggg",
 ];
 export const BRUTE_PALETTE: Palette = { o: "#1a0a0a", B: "#4a2428", m: "#8a3030", g: "#e8d0c0" };
+
+export const BLOATER_HALF = [
+  "................",
+  "...oooooooooo...",
+  "..oYYYYYYYYYYo..",
+  ".oYYYYbbbbYYYYo.",
+  ".oYYYbbbbbbYYYo.",
+  "oYYYbbbbbbbbYYYg",
+  "oYYbbbbbbbbbbYYg",
+  ".oYbbbbbbbbbbYgg",
+];
+export const BLOATER_PALETTE: Palette = { o: "#24300c", Y: "#8aa04a", b: "#d6e36a", g: "#f4f0c8" };

@@ -1,5 +1,5 @@
 import {
-  SPAWN_BASE, SPAWN_CAP, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START, SPAWN_INTERVAL_STEP, SPAWN_PER_WAVE,
+  BLOATER_CHANCE, SPAWN_BASE, SPAWN_CAP, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START, SPAWN_INTERVAL_STEP, SPAWN_PER_WAVE,
   WAVE_BANNER_MS, WAVE_CALM_MS, WAVE_FIGHT_MS, type ZombieKind,
 } from "../config";
 
@@ -21,12 +21,45 @@ export function modifierLabel(modifier: WaveModifier): string {
   return "HORDA";
 }
 
+export interface SpawnBands {
+  brute: number;
+  runner: number;
+  bloater: number;
+}
+
+export function getSpawnBands(wave: number, modifier: WaveModifier): SpawnBands {
+  return {
+    brute: bruteChance(wave, modifier),
+    runner: runnerChance(wave, modifier),
+    bloater: wave >= 3 ? BLOATER_CHANCE : 0,
+  };
+}
+
+function bruteChance(wave: number, modifier: WaveModifier): number {
+  if (modifier === "brute") return 0.22;
+  if (wave >= 4) return 0.1;
+  if (wave >= 2) return 0.04;
+  return 0;
+}
+
+function runnerChance(wave: number, modifier: WaveModifier): number {
+  if (modifier === "runners") return 0.55;
+  if (wave >= 2) return 0.25;
+  return 0.1;
+}
+
 export function pickSpawnKind(wave: number, modifier: WaveModifier, roll: number): ZombieKind {
-  const bruteChance = modifier === "brute" ? 0.22 : wave >= 4 ? 0.1 : wave >= 2 ? 0.04 : 0;
-  const runnerChance = modifier === "runners" ? 0.55 : wave >= 2 ? 0.25 : 0.1;
-  if (roll < bruteChance) return "brute";
-  if (roll < bruteChance + runnerChance) return "runner";
+  const bands = getSpawnBands(wave, modifier);
+  if (roll < bands.brute) return "brute";
+  if (roll < bands.brute + bands.runner) return "runner";
+  if (roll < bands.brute + bands.runner + bands.bloater) return "bloater";
   return "walker";
+}
+
+export function pickLiveKind(phase: WavePhase, wave: number, modifier: WaveModifier, roll: number): ZombieKind {
+  const kind = pickSpawnKind(wave, modifier, roll);
+  if (phase === "calm" && kind === "bloater") return "walker";
+  return kind;
 }
 
 export function spawnIntervalMs(wave: number): number {

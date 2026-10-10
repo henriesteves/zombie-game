@@ -12,6 +12,10 @@ export const COMBO_WINDOW_MS = 1600;
 export const COMBO_CAP = 8;
 export const LASER_RANGE = 640;
 export const LASER_STEP = 8;
+export const LASER_WIDTH = 2;
+export const LASER_DOT_RADIUS = 4;
+export const LASER_MUZZLE = 26;
+export const LASER_BARREL_RADIUS = 14;
 export const BUILDING_BLOCK_H = 260;
 export const BUILDING_GAP = 150;
 
@@ -54,7 +58,7 @@ export function startingAmmo(): Record<WeaponId, number> {
 export type PickupKind = "health" | "smg" | "shotgun";
 
 // ---------- Zumbis ----------
-export type ZombieKind = "walker" | "runner" | "brute";
+export type ZombieKind = "walker" | "runner" | "brute" | "bloater";
 
 export interface ZombieCharge {
   range: number;
@@ -82,7 +86,13 @@ export const ZOMBIES: Record<ZombieKind, ZombieDef> = {
     texture: "zombie_brute", hp: 16, speed: 46, damage: 25, score: 60, radius: 22, knockback: 25,
     charge: { range: 210, windupMs: 480, dashMs: 320, speed: 340, cooldownMs: 2600 },
   },
+  bloater: { texture: "zombie_bloater", hp: 8, speed: 36, damage: 14, score: 40, radius: 18, knockback: 60, charge: null },
 };
+
+export const BLOATER_CHANCE = 0.08;
+export const BLOATER_BLAST_RADIUS = 120;
+export const BLOATER_ZOMBIE_DAMAGE = 18;
+export const BLOATER_PLAYER_DAMAGE = 30;
 
 export const FLOW_CELL = 32;
 export const FLOW_REBUILD_MS = 180;
@@ -114,6 +124,7 @@ export const SPAWN_BASE = 16;
 export const SPAWN_PER_WAVE = 5;
 export const CAR_HITS = 10;
 export const ALARM_WAVE_CARS = 2;
+export const GAMEPAD_START_BUTTON = 9;
 export const HEALTH_PICKUP = 25;
 export const PICKUP_LIFE_MS = 20000;
 export const DROP_HEALTH = 0.1;

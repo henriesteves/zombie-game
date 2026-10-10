@@ -20,6 +20,27 @@ interface SpawnRect {
 
 const MIN_RECT = 8;
 
+export interface SpawnView {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export function spawnView(scrollX: number, scrollY: number): SpawnView {
+  return {
+    left: scrollX - SPAWN_VIEW_MARGIN,
+    top: scrollY - SPAWN_VIEW_MARGIN,
+    right: scrollX + VIEW_W + SPAWN_VIEW_MARGIN,
+    bottom: scrollY + VIEW_H + SPAWN_VIEW_MARGIN,
+  };
+}
+
+export function isOutsideSpawnView(x: number, y: number, scrollX: number, scrollY: number): boolean {
+  const view = spawnView(scrollX, scrollY);
+  return x < view.left || y < view.top || x > view.right || y > view.bottom;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -29,10 +50,11 @@ function randomBetween(min: number, max: number): number {
 }
 
 function offscreenRects(scrollX: number, scrollY: number): SpawnRect[] {
-  const viewLeft = scrollX - SPAWN_VIEW_MARGIN;
-  const viewTop = scrollY - SPAWN_VIEW_MARGIN;
-  const viewRight = scrollX + VIEW_W + SPAWN_VIEW_MARGIN;
-  const viewBottom = scrollY + VIEW_H + SPAWN_VIEW_MARGIN;
+  const view = spawnView(scrollX, scrollY);
+  const viewLeft = view.left;
+  const viewTop = view.top;
+  const viewRight = view.right;
+  const viewBottom = view.bottom;
   const pad = WORLD_INSET;
   const maxY = WORLD_H - pad;
   const streetLeft = STREET_LEFT + 56;
