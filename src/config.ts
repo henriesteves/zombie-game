@@ -130,6 +130,8 @@ export const SPIT_SPAWN_OFFSET = 20;
 export const BLOATER_BLAST_RADIUS = 120;
 export const BLOATER_ZOMBIE_DAMAGE = 18;
 export const BLOATER_PLAYER_DAMAGE = 30;
+export const BLOATER_SWELL_RATIO = 0.5;
+export const BLOATER_SWELL_SCALE = 1.35;
 
 export const FLOW_CELL = 32;
 export const FLOW_REBUILD_MS = 180;

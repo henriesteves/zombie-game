@@ -454,6 +454,7 @@ export class GameScene extends Phaser.Scene {
   private damageZombie(z: Zombie, dmg: number, angle: number) {
     const def = ZOMBIES[z.kind];
     z.hp -= dmg;
+    z.syncSwell();
     z.hitUntil = this.time.now + 70;
     z.setTintFill(0xffffff); // hit flash
     (z.body as Body).setVelocity(Math.cos(angle) * def.knockback, Math.sin(angle) * def.knockback);
@@ -482,7 +483,7 @@ export class GameScene extends Phaser.Scene {
     if (brute) this.cameras.main.shake(150, 0.006);
     this.corpses.leave(z, "kill");
     this.drops.drop(z.x, z.y);
-    z.disableBody(true, true);
+    z.setScale(1).disableBody(true, true);
     if (detonates) this.explosions.detonateBloater(blastX, blastY);
   }
 

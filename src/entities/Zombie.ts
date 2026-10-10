@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { ZOMBIES, type ZombieCharge, type ZombieKind } from "../config";
+import { bloaterScale } from "../combat/bloater-swell";
 
 export type ChargeStep = "start" | "hold" | "dash";
 
@@ -49,6 +50,11 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     const radius = def.radius;
     (this.body as Phaser.Physics.Arcade.Body).setCircle(radius, this.width / 2 - radius, this.height / 2 - radius);
     return this;
+  }
+
+  syncSwell(): void {
+    if (this.kind !== "bloater") return;
+    this.setScale(this.hp > 0 ? bloaterScale(this.hp, ZOMBIES.bloater.hp) : 1);
   }
 
   interruptCharge(time: number) {
