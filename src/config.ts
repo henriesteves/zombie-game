@@ -23,7 +23,6 @@ export const COMBO_CAP = 8;
 export const SCORE_POPUP_MS = 700;
 export const SCORE_POPUP_RISE = 0.05;
 export const LASER_RANGE = 640;
-export const LASER_STEP = 8;
 export const LASER_WIDTH = 2;
 export const LASER_DOT_RADIUS = 4;
 export const LASER_MUZZLE = 26;
