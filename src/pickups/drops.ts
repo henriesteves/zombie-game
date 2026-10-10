@@ -3,6 +3,7 @@ import {
   DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, HEALTH_PICKUP, PICKUP_LIFE_MS, PLAYER_MAX_HP, WEAPONS, WORLD_H, WORLD_W,
   type PickupKind, type WeaponId,
 } from "../config";
+import { acceptsPickup, magnetStep, type MagnetPoint } from "./magnet";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
@@ -22,7 +23,7 @@ export class PickupDrops {
     private readonly host: PickupHost,
   ) {}
 
-  update(time: number) {
+  update(time: number, deltaMs: number, player: MagnetPoint, buildings: Sprite[]) {
     for (const child of this.group.getChildren().slice()) {
       const pickup = child as Sprite;
       if (!pickup.active) continue;
@@ -31,7 +32,16 @@ export class PickupDrops {
         continue;
       }
       pickup.setScale(1 + Math.sin(time / 180) * 0.08);
+      this.pull(pickup, player, buildings, deltaMs);
     }
+  }
+
+  private pull(pickup: Sprite, player: MagnetPoint, buildings: Sprite[], deltaMs: number) {
+    const accepted = acceptsPickup(pickup.getData("kind") as PickupKind, this.host);
+    const next = magnetStep(pickup, player, accepted, deltaMs);
+    if (next.x === pickup.x && next.y === pickup.y) return;
+    if (blockedByBuilding(pickup, player, buildings)) return;
+    pickup.setPosition(next.x, next.y);
   }
 
   drop(x: number, y: number) {
@@ -76,20 +86,20 @@ export function scarcerGun(ammo: Record<WeaponId, number>): "smg" | "shotgun" | 
   return "shotgun";
 }
 
+function blockedByBuilding(pickup: MagnetPoint, player: MagnetPoint, buildings: Sprite[]): boolean {
+  const sight = new Phaser.Geom.Line(pickup.x, pickup.y, player.x, player.y);
+  for (const building of buildings) {
+    if (Phaser.Geom.Intersects.LineToRectangle(sight, building.getBounds())) return true;
+  }
+  return false;
+}
+
 function applyPickup(kind: PickupKind, host: PickupHost): boolean {
-  if (kind === "health") return applyHealth(host);
-  return applyAmmo(kind, host);
-}
-
-function applyHealth(host: PickupHost): boolean {
-  if (host.getHp() >= PLAYER_MAX_HP) return false;
-  host.setHp(Math.min(PLAYER_MAX_HP, host.getHp() + HEALTH_PICKUP));
-  return true;
-}
-
-function applyAmmo(kind: "smg" | "shotgun", host: PickupHost): boolean {
-  const weapon = WEAPONS[kind];
-  if (host.ammo[kind] >= weapon.ammoMax) return false;
-  host.ammo[kind] = Math.min(weapon.ammoMax, host.ammo[kind] + weapon.ammoPerPickup);
+  if (!acceptsPickup(kind, host)) return false;
+  if (kind === "health") {
+    host.setHp(Math.min(PLAYER_MAX_HP, host.getHp() + HEALTH_PICKUP));
+    return true;
+  }
+  host.ammo[kind] = Math.min(WEAPONS[kind].ammoMax, host.ammo[kind] + WEAPONS[kind].ammoPerPickup);
   return true;
 }

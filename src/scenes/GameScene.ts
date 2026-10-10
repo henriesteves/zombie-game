@@ -242,7 +242,7 @@ export class GameScene extends Phaser.Scene {
     this.spits.advance(time, delta, this.live, this.player);
     this.popups.advance(delta);
     this.updateBullets(time);
-    this.updateProps(time);
+    this.updateProps(time, delta);
     this.light.flash = Math.max(0, this.light.flash - delta / 90);
     this.emitHud();
   }
@@ -534,7 +534,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private updateProps(time: number) {
+  private updateProps(time: number, delta: number) {
     for (const c of this.cars.getChildren()) {
       const car = c as Sprite;
       if ((car.getData("alarmUntil") as number) > time) {
@@ -545,7 +545,7 @@ export class GameScene extends Phaser.Scene {
         car.setData("blink", false);
       }
     }
-    this.drops.update(time);
+    this.drops.update(time, delta, this.player, this.buildings.getChildren() as Sprite[]);
   }
 
   private waveBanner(): string {
