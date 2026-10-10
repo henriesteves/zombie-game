@@ -47,6 +47,15 @@ describe("dash", () => {
     assert.equal(walked.x, PLAYER_SPEED);
   });
 
+  it("is only live during the burst, not the cooldown", () => {
+    const dash = new DashState();
+    assert.equal(dash.active, false);
+    dash.velocity(16, true, 1, 0, 0);
+    assert.equal(dash.active, true);
+    dash.velocity(DASH_MS, false, 1, 0, 0);
+    assert.equal(dash.active, false);
+  });
+
   it("maps the remaining cooldown to a recharge mark", () => {
     assert.equal(dashRecharge(0), 1);
     assert.equal(dashRecharge(DASH_COOLDOWN_MS), 0);

@@ -357,7 +357,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private hurt(dmg: number, origin?: { x: number; y: number }) {
-    if (this.dead || dmg <= 0) return;
+    if (this.dead || dmg <= 0 || this.dash.active) return;
     this.hp -= dmg;
     const survived = this.hp > 0;
     if (survived && origin) this.knock.replace(this.player.x, this.player.y, origin.x, origin.y);
