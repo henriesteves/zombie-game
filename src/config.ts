@@ -5,6 +5,9 @@ export const WORLD_H = 1600;
 export const STREET_LEFT = 700;
 export const STREET_RIGHT = 1700;
 export const CAR_FIRE_MS = 5200;
+export const HIT_STOP_MS = 46;
+export const BLAST_STOP_MS = 80;
+export const DECAL_DRY_MS = 9000;
 export const BUILDING_BLOCK_H = 260;
 export const BUILDING_GAP = 150;
 

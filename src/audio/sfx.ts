@@ -6,6 +6,7 @@ let noiseBuf: AudioBuffer | null = null;
 let lastGroan = 0;
 let lastHit = 0;
 let alarmBusyUntil = 0;
+let hordeGain: GainNode | null = null;
 
 /** Chame dentro de um gesto do usuário (clique/tecla). */
 export function unlockAudio() {
@@ -58,18 +59,19 @@ function tone({ type, f0, f1, dur, vol, delay = 0 }: ToneOpts) {
 }
 
 export function pistol() {
-  burst({ dur: 0.15, vol: 0.7, f0: 5000, f1: 400 });
-  tone({ type: "sine", f0: 180, f1: 40, dur: 0.12, vol: 0.8 });
+  burst({ dur: 0.11, vol: 0.5, f0: 2400, f1: 160 });
+  tone({ type: "sine", f0: 130, f1: 32, dur: 0.13, vol: 0.85 });
 }
 
 export function smg() {
-  burst({ dur: 0.09, vol: 0.5, f0: 4500, f1: 600 });
-  tone({ type: "sine", f0: 150, f1: 50, dur: 0.07, vol: 0.5 });
+  burst({ dur: 0.05, vol: 0.35, f0: 2200, f1: 280 });
+  tone({ type: "sine", f0: 100, f1: 36, dur: 0.05, vol: 0.5 });
 }
 
 export function shotgun() {
-  burst({ dur: 0.35, vol: 0.95, f0: 3500, f1: 250 });
-  tone({ type: "sine", f0: 120, f1: 30, dur: 0.25, vol: 1 });
+  burst({ dur: 0.26, vol: 0.85, f0: 1600, f1: 70 });
+  tone({ type: "sine", f0: 64, f1: 26, dur: 0.26, vol: 1 });
+  tone({ type: "triangle", f0: 160, f1: 40, dur: 0.1, vol: 0.35 });
 }
 
 export function explosion() {
@@ -96,6 +98,24 @@ export function hurt() {
 export function pickup() {
   tone({ type: "sine", f0: 660, f1: 700, dur: 0.07, vol: 0.3 });
   tone({ type: "sine", f0: 990, f1: 1040, dur: 0.1, vol: 0.3, delay: 0.07 });
+}
+
+export function setHordeLevel(level: number) {
+  if (!ctx || !master) return;
+  if (!hordeGain) {
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = 46;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 140;
+    hordeGain = ctx.createGain();
+    hordeGain.gain.value = 0;
+    osc.connect(filter).connect(hordeGain).connect(master);
+    osc.start();
+  }
+  const amount = Math.min(1, Math.max(0, level)) * 0.09;
+  hordeGain.gain.setTargetAtTime(amount, ctx.currentTime, 0.3);
 }
 
 export function bruteWindup() {
@@ -146,13 +166,16 @@ export function alarm(seconds = 6) {
   const osc = ctx.createOscillator();
   osc.type = "square";
   for (let s = 0; s < seconds * 4; s++) {
-    osc.frequency.setValueAtTime(s % 2 === 0 ? 900 : 700, t + s * 0.25);
+    osc.frequency.setValueAtTime(s % 2 === 0 ? 480 : 360, t + s * 0.25);
   }
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 700;
   const g = ctx.createGain();
-  g.gain.setValueAtTime(0.1, t);
-  g.gain.setValueAtTime(0.1, t + seconds - 0.1);
+  g.gain.setValueAtTime(0.07, t);
+  g.gain.setValueAtTime(0.07, t + seconds - 0.1);
   g.gain.linearRampToValueAtTime(0, t + seconds);
-  osc.connect(g).connect(master);
+  osc.connect(filter).connect(g).connect(master);
   osc.start(t);
   osc.stop(t + seconds);
 }

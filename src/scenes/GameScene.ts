@@ -3,7 +3,8 @@ import {
   ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE,
   CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_HITS, CAR_PLAYER_DAMAGE, CAR_ZOMBIE_DAMAGE,
   DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, EXPLOSION_RADIUS, FLOW_REBUILD_MS, HEALTH_PICKUP,
-  CAR_FIRE_MS, PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED, STREET_LEFT, STREET_RIGHT,
+  BLAST_STOP_MS, CAR_FIRE_MS, DECAL_DRY_MS, HIT_STOP_MS, PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED,
+  STREET_LEFT, STREET_RIGHT,
   VIEW_H, VIEW_W, WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, startingAmmo,
   type PickupKind, type WeaponId, type ZombieKind,
 } from "../config";
@@ -53,6 +54,7 @@ export class GameScene extends Phaser.Scene {
   private lamps: { x: number; y: number }[] = [];
   private fires: { x: number; y: number; life: number; max: number; sprite: Phaser.GameObjects.Image }[] = [];
   private shadows!: Phaser.GameObjects.Graphics;
+  private impactUntil = 0;
 
   // estado da partida (reiniciado em resetState)
   private hp = PLAYER_MAX_HP;
@@ -88,6 +90,7 @@ export class GameScene extends Phaser.Scene {
     this.flowReadyAt = 0;
     this.waves.reset();
     this.fires = [];
+    this.impactUntil = 0;
     this.decals = [];
   }
 
@@ -167,11 +170,17 @@ export class GameScene extends Phaser.Scene {
   // ====================================================================
   update(time: number, delta: number) {
     this.updateFires(delta);
+    this.dryDecals(time);
     if (this.dead) {
       if (this.keys.R.isDown) this.scene.restart();
       this.emitHud();
       return;
     }
+    if (time < this.impactUntil) {
+      this.emitHud();
+      return;
+    }
+    if (this.physics.world.isPaused) this.physics.resume();
     this.elapsed += delta / 1000;
     this.handlePlayer(time);
     this.advanceWave(delta);
@@ -403,6 +412,7 @@ export class GameScene extends Phaser.Scene {
     this.rebuildFlow(time);
     for (const zombie of live) this.steerZombie(zombie, time);
     this.drawShadows(live);
+    sfx.setHordeLevel(live.length / 36);
   }
 
   private drawShadows(live: Zombie[]) {
@@ -509,6 +519,7 @@ export class GameScene extends Phaser.Scene {
     z.setTintFill(0xffffff); // hit flash
     (z.body as Body).setVelocity(Math.cos(angle) * def.knockback, Math.sin(angle) * def.knockback);
     this.blood.explode(4, z.x, z.y);
+    if (dmg >= 1.4) this.holdImpact(HIT_STOP_MS);
     if (z.hp <= 0) this.killZombie(z);
     else sfx.hit();
   }
@@ -534,8 +545,25 @@ export class GameScene extends Phaser.Scene {
     } else {
       d = this.add.image(x, y, "splat").setDepth(1);
     }
-    d.setRotation(Math.random() * Math.PI * 2).setScale(scale).setTint(tint).setAlpha(0.8);
+    d.setRotation(Math.random() * Math.PI * 2).setScale(scale).setTint(tint).setAlpha(0.85);
+    d.setData("born", this.time.now).setData("blood", tint === 0xffffff);
     this.decals.push(d);
+  }
+
+  private dryDecals(time: number) {
+    for (const decal of this.decals) {
+      if (!decal.getData("blood")) continue;
+      const age = Math.min(1, (time - (decal.getData("born") as number)) / DECAL_DRY_MS);
+      const red = Math.round(120 - age * 78);
+      decal.setTint(Phaser.Display.Color.GetColor(red, Math.round(red * 0.12), Math.round(red * 0.1)));
+      decal.setAlpha(0.85 - age * 0.4);
+    }
+  }
+
+  private holdImpact(ms: number) {
+    if (this.time.now < this.impactUntil) return;
+    this.impactUntil = this.time.now + ms;
+    this.physics.pause();
   }
 
   // ---------------------------------------------------------------- projéteis
@@ -617,6 +645,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private playBlast(x: number, y: number, radius: number) {
+    this.holdImpact(BLAST_STOP_MS);
     sfx.explosion();
     this.cameras.main.shake(320, 0.008 + radius / 18000);
     this.light.flash = 1;
