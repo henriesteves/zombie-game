@@ -589,6 +589,7 @@ export class GameScene extends Phaser.Scene {
       scrollX: this.cameras.main.scrollX,
       scrollY: this.cameras.main.scrollY,
       wheelOpen: this.weaponWheel.open, wheelHighlight: this.weaponWheel.highlight, loadout: this.ammo,
+      elapsed: this.elapsed,
     };
     this.events.emit("hud", s);
   }

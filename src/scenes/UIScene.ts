@@ -6,6 +6,7 @@ import { calmFill } from "../waves/wave-director";
 import { lowHealthBeatMs } from "../fx/low-health";
 import { arrowTriangle, hudArrows, type ThreatPoint } from "../fx/offscreen-arrows";
 import { WeaponWheelView } from "../combat/weapon-wheel-view";
+import { formatSurviveTime } from "../score/survive-time";
 
 export interface HudState {
   hp: number;
@@ -33,6 +34,7 @@ export interface HudState {
   wheelOpen: boolean;
   wheelHighlight: WeaponId | null;
   loadout: Record<WeaponId, number>;
+  elapsed: number;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -159,11 +161,13 @@ export class UIScene extends Phaser.Scene {
 
     const sec = String(Math.ceil(s.phaseSeconds)).padStart(2, "0");
     const clock = s.calm ? `0:${sec}` : `FALTAM ${s.hordeLeft}`;
-    this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n${clock}`);
+    this.scoreText.setText(
+      `ONDA ${s.wave}\nSCORE ${s.score}\nRECORDE ${s.bestScore}\nKILLS ${s.kills}\n${formatSurviveTime(s.elapsed)}\n${clock}`,
+    );
 
     this.overText.setVisible(s.dead);
     this.pauseText.setVisible(s.paused && !s.dead);
-    if (s.dead) this.overText.setText(`VOCÊ MORREU\nonda ${s.wave}\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\n\npressione R para reiniciar`);
+    if (s.dead) this.overText.setText(`VOCÊ MORREU\nonda ${s.wave}\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\ntempo ${formatSurviveTime(s.elapsed)}\n\npressione R para reiniciar`);
     const showCombo = s.combo >= 2 && !s.dead && !s.wheelOpen;
     this.comboText.setVisible(showCombo);
     if (!showCombo) this.shownCombo = 0;
