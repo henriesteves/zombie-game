@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import {
-  ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, COMBO_CAP, COMBO_WINDOW_MS,
+  ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS,
   GAMEPAD_START_BUTTON, HIT_FLASH_MS, HIT_STOP_MS, PLAYER_HURT_BLINK_MS, PLAYER_INVULN_MS, PLAYER_MAX_HP,
   VIEW_H, VIEW_W, WEAPONS, WORLD_H, WORLD_W, ZOMBIES, startingAmmo, type WeaponId, type ZombieKind,
 } from "../config";
@@ -9,6 +9,7 @@ import { updateHorde } from "../ai/horde";
 import * as sfx from "../audio/sfx";
 import { tickCarAlarm } from "../combat/car-alarm";
 import { DashState } from "../combat/dash-state";
+import { Combo } from "../combat/combo";
 import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
 import { Gun, bindWeaponHotkeys } from "../combat/gun";
@@ -62,8 +63,7 @@ export class GameScene extends Phaser.Scene {
   private drops!: PickupDrops;
   private laser!: Phaser.GameObjects.Graphics;
   private impactLeft = 0;
-  private combo = 0;
-  private comboLeftMs = 0;
+  private combo = new Combo();
   private hp = PLAYER_MAX_HP;
   private dead = false;
   private weapon: WeaponId = "pistol";
@@ -112,8 +112,7 @@ export class GameScene extends Phaser.Scene {
     this.flowReadyAt = 0;
     this.waves.reset();
     this.impactLeft = 0;
-    this.combo = 0;
-    this.comboLeftMs = 0;
+    this.combo.reset();
     this.dash.reset();
     this.knock.reset();
     this.weaponWheel.reset();
@@ -241,7 +240,7 @@ export class GameScene extends Phaser.Scene {
     this.elapsed += delta / 1000;
     this.invulnLeft = remainMs(this.invulnLeft, delta);
     this.gun.tick(delta);
-    this.expireCombo(delta);
+    this.combo.tick(delta);
     this.handlePlayer(delta, wantsDash);
     this.advanceWave(delta);
     this.updateSpawns(delta);
@@ -473,7 +472,7 @@ export class GameScene extends Phaser.Scene {
     if (detonates) z.suppressBlast = true;
     this.blood.explode(brute ? 26 : 12, z.x, z.y);
     this.bloodDecals.add(z.x, z.y, 0xffffff, brute ? 1.6 : Phaser.Math.FloatBetween(0.7, 1.1));
-    this.popups.spawn(z.x, z.y, this.registerKill(def.score));
+    this.popups.spawn(z.x, z.y, this.noteKill(def.score));
     this.kills++;
     sfx.hit();
     if (brute) this.cameras.main.shake(150, 0.006);
@@ -483,20 +482,11 @@ export class GameScene extends Phaser.Scene {
     if (detonates) this.explosions.detonateBloater(blastX, blastY);
   }
 
-  private registerKill(baseScore: number): number {
-    this.combo = this.comboLeftMs > 0 ? this.combo + 1 : 1;
-    this.comboLeftMs = COMBO_WINDOW_MS;
-    const gained = baseScore * Math.min(COMBO_CAP, this.combo);
-    this.score += gained;
-    if (this.combo > 1 && this.combo % 5 === 0) sfx.comboMark();
-    return gained;
-  }
-
-  private expireCombo(delta: number) {
-    if (this.combo === 0) return;
-    this.comboLeftMs = remainMs(this.comboLeftMs, delta);
-    if (this.comboLeftMs > 0) return;
-    this.combo = 0;
+  private noteKill(baseScore: number): number {
+    const step = this.combo.note(baseScore);
+    this.score += step.gained;
+    if (step.mark) sfx.comboMark();
+    return step.gained;
   }
 
   private holdImpact(ms: number) {
@@ -585,8 +575,8 @@ export class GameScene extends Phaser.Scene {
       hordeLeft: this.waves.pending + this.zombies.countActive(true),
       nextHorde: nextHordeLabel(this.waves.wave),
       banner: this.waveBanner(),
-      combo: Math.min(COMBO_CAP, this.combo),
-      comboLeft: this.combo <= 1 ? 0 : this.comboLeftMs / COMBO_WINDOW_MS,
+      combo: this.combo.hudCount,
+      comboLeft: this.combo.hudLeft,
       paused: this.paused && !this.dead,
       dashRecharge: this.dash.recharge,
       threats: this.live.map((zombie) => ({ x: zombie.x, y: zombie.y, kind: zombie.kind })),
