@@ -194,7 +194,7 @@ export class UIScene extends Phaser.Scene {
     this.alertText.setVisible(showBanner);
     if (!showBanner) return;
     this.alertText.setText(s.banner);
-    this.alertText.setColor(s.banner === "PRÓXIMA HORDA" ? "#e2c14a" : "#ff4040");
+    this.alertText.setColor(s.banner === "PRÓXIMA HORDA" || s.banner.includes(" — ") ? "#e2c14a" : "#ff4040");
     this.alertText.setAlpha(0.55 + 0.45 * Math.abs(Math.sin(s.phaseSeconds * 8)));
   }
 }

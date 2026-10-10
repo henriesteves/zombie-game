@@ -1,6 +1,7 @@
 import Phaser from "phaser";
-import { STREET_LEFT, STREET_RIGHT, WORLD_H } from "../config";
+import { STREET_LEFT, STREET_RIGHT, STREET_SEED, WORLD_H } from "../config";
 import { CAR_COLORS } from "../assets/proceduralTextures";
+import { mulberry32 } from "../rng/mulberry32";
 import { placeStreetProps, streetBlocks, type StreetPoint } from "./street";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -18,8 +19,9 @@ export function layStreet(
   scene.add.tileSprite(STREET_LEFT, 0, SIDEWALK_WIDTH, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
   scene.add.tileSprite(STREET_RIGHT - SIDEWALK_WIDTH, 0, SIDEWALK_WIDTH, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
   for (const block of streetBlocks()) addBuilding(buildings, block);
-  const props = placeStreetProps(() => Math.random());
-  for (const spot of props.cars) addCurbCar(cars, spot.x, spot.y);
+  const roll = mulberry32(STREET_SEED);
+  const props = placeStreetProps(roll);
+  for (const spot of props.cars) addCurbCar(cars, spot, roll);
   for (const spot of props.barrels) addBarrel(barrels, spot.x, spot.y);
   for (const lamp of props.lamps) scene.add.image(lamp.x, lamp.y - LAMP_OFFSET_Y, "lamp").setDepth(6);
   return props.lamps;
@@ -33,9 +35,9 @@ function addBuilding(
   building.setDisplaySize(block.width, block.height).setDepth(3).refreshBody();
 }
 
-function addCurbCar(cars: Phaser.Physics.Arcade.StaticGroup, x: number, y: number) {
-  const color = Phaser.Utils.Array.GetRandom([...CAR_COLORS]);
-  const car = cars.create(x, y, `car_${color}_v`) as Sprite;
+function addCurbCar(cars: Phaser.Physics.Arcade.StaticGroup, spot: StreetPoint, roll: () => number) {
+  const color = CAR_COLORS[Math.min(CAR_COLORS.length - 1, Math.floor(roll() * CAR_COLORS.length))];
+  const car = cars.create(spot.x, spot.y, `car_${color}_v`) as Sprite;
   car.setDepth(6).setData("alarmLeft", 0).setData("alarmBlink", 0).setData("hits", 0);
 }
 

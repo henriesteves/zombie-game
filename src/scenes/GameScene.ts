@@ -31,6 +31,7 @@ import { isExpired, remainMs } from "../time/remain-ms";
 import { PickupDrops } from "../pickups/drops";
 import { readHighScore, recordHighScore } from "../score/high-score";
 import { pickOffscreenPoint } from "../spawn/offscreen-point";
+import { FirstEncounter } from "../waves/first-encounter";
 import { WaveDirector, maxAliveFor, modifierLabel, nextHordeLabel, pickLiveKind, spawnIntervalMs } from "../waves/wave-director";
 import { layStreet } from "../world/street-view";
 import type { HudState } from "./UIScene";
@@ -83,6 +84,7 @@ export class GameScene extends Phaser.Scene {
   private knock = new PlayerKnock();
   private weaponWheel = new WeaponWheel();
   private pauseMenu = new PauseMenu();
+  private encounter = new FirstEncounter();
   private dashTrail!: DashTrail;
   private gun!: Gun;
   private spits!: SpitVolley;
@@ -117,6 +119,7 @@ export class GameScene extends Phaser.Scene {
     this.knock.reset();
     this.weaponWheel.reset();
     this.pauseMenu.reset();
+    this.encounter.reset();
   }
 
   create() {
@@ -241,6 +244,7 @@ export class GameScene extends Phaser.Scene {
     this.invulnLeft = remainMs(this.invulnLeft, delta);
     this.gun.tick(delta);
     this.combo.tick(delta);
+    this.encounter.tick(delta);
     this.handlePlayer(delta, wantsDash);
     this.advanceWave(delta);
     this.updateSpawns(delta);
@@ -427,6 +431,7 @@ export class GameScene extends Phaser.Scene {
     const zombie = this.zombies.get(point.x, point.y) as Zombie | null;
     if (!zombie) return false;
     zombie.spawn(kind, point.x, point.y);
+    this.encounter.noteKind(kind);
     return true;
   }
 
@@ -550,6 +555,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private waveBanner(): string {
+    if (this.encounter.line) return this.encounter.line;
     for (const child of this.cars.getChildren()) {
       if ((child.getData("alarmLeft") as number) > 0) return "HORDA A CAMINHO";
     }

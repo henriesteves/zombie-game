@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { STREET_LEFT, STREET_RIGHT, WORLD_H, WORLD_W } from "../src/config";
+import { STREET_LEFT, STREET_RIGHT, STREET_SEED, WORLD_H, WORLD_W } from "../src/config";
+import { mulberry32 } from "../src/rng/mulberry32";
 import { placeStreetProps, streetBlocks } from "../src/world/street";
 
 describe("streetBlocks", () => {
@@ -29,5 +30,13 @@ describe("streetBlocks", () => {
       assert.ok(barrel.x > STREET_LEFT && barrel.x < STREET_RIGHT);
       assert.ok(Math.hypot(barrel.x - centerX, barrel.y - centerY) >= 200);
     }
+  });
+
+  it("repeats the same curb layout for one seed", () => {
+    const first = placeStreetProps(mulberry32(STREET_SEED));
+    const second = placeStreetProps(mulberry32(STREET_SEED));
+    assert.deepEqual(first, second);
+    const other = placeStreetProps(mulberry32(STREET_SEED + 1));
+    assert.notDeepEqual(first.cars, other.cars);
   });
 });
