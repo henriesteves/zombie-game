@@ -90,6 +90,10 @@ export function hit() {
   burst({ dur: 0.07, vol: 0.45, f0: 900, f1: 200 });
 }
 
+export function heartbeat() {
+  tone({ type: "sine", f0: 78, f1: 42, dur: 0.09, vol: 0.55 });
+}
+
 export function hurt() {
   tone({ type: "square", f0: 220, f1: 80, dur: 0.14, vol: 0.35 });
   burst({ dur: 0.12, vol: 0.4, f0: 1200, f1: 200 });

@@ -1,5 +1,7 @@
 import Phaser from "phaser";
-import { VIEW_H, VIEW_W } from "../config";
+import { LOW_HP_RATIO, VIEW_H, VIEW_W } from "../config";
+import * as sfx from "../audio/sfx";
+import { lowHealthBeatMs } from "../fx/low-health";
 
 export interface HudState {
   hp: number;
@@ -28,6 +30,10 @@ export class UIScene extends Phaser.Scene {
   private comboText!: Phaser.GameObjects.Text;
   private pauseText!: Phaser.GameObjects.Text;
   private shownCombo = 0;
+  private hud: HudState | null = null;
+  private beatLeft = 0;
+  private beating = false;
+  private pulse = 0;
 
   constructor() {
     super("UI");
@@ -56,12 +62,36 @@ export class UIScene extends Phaser.Scene {
     this.events.once("shutdown", () => game.events.off("hud", this.onHud, this));
   }
 
+  update(_time: number, delta: number) {
+    const hud = this.hud;
+    if (!hud) return;
+    const interval = lowHealthBeatMs(hud.hp, hud.maxHp);
+    if (!interval || hud.dead) {
+      this.beating = false;
+      this.pulse = 0;
+      return;
+    }
+    if (!this.beating) {
+      this.beating = true;
+      this.beatLeft = 0;
+    }
+    if (hud.paused) return;
+    this.pulse += delta;
+    this.beatLeft -= delta;
+    if (this.beatLeft > 0) return;
+    sfx.heartbeat();
+    this.beatLeft = interval;
+  }
+
   private onHud(s: HudState) {
+    this.hud = s;
     const g = this.g;
     g.clear();
     g.fillStyle(0x000000, 0.6).fillRect(22, 22, 244, 20);
     const pct = Math.max(0, s.hp / s.maxHp);
-    g.fillStyle(pct > 0.35 ? 0x3aa655 : 0xd03030, 1).fillRect(24, 24, 240 * pct, 16);
+    const critical = s.hp > 0 && pct < LOW_HP_RATIO;
+    const alpha = critical ? 0.55 + 0.45 * Math.abs(Math.sin(this.pulse / 160)) : 1;
+    g.fillStyle(critical ? 0xd03030 : 0x3aa655, alpha).fillRect(24, 24, 240 * pct, 16);
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
     this.weaponText.setText(`${s.weapon}  ${ammo}`);

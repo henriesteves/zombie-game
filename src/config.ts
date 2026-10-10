@@ -31,6 +31,9 @@ export const DASH_MS = 150;
 export const DASH_COOLDOWN_MS = 800;
 export const DASH_TRAIL_MS = 180;
 export const PLAYER_MAX_HP = 100;
+export const LOW_HP_RATIO = 0.35;
+export const LOW_HP_BEAT_MS = 920;
+export const LOW_HP_BEAT_MIN_MS = 320;
 
 // ---------- Armas (dados, não código) ----------
 export type WeaponId = "pistol" | "smg" | "shotgun";
