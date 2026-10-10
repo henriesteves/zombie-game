@@ -16,6 +16,7 @@ import { drawLaserSight } from "../combat/laser-sight";
 import { SpitVolley } from "../combat/spit-volley";
 import { Zombie } from "../entities/Zombie";
 import { BloodDecals } from "../fx/blood-decals";
+import { Corpses } from "../fx/corpses";
 import { ScorePopups } from "../fx/score-popups";
 import { FlashlightPipeline } from "../fx/FlashlightPipeline";
 import { collectSceneLights } from "../fx/scene-lights";
@@ -80,6 +81,7 @@ export class GameScene extends Phaser.Scene {
   private gun!: Gun;
   private spits!: SpitVolley;
   private popups!: ScorePopups;
+  private corpses!: Corpses;
 
   constructor() {
     super("Game");
@@ -140,6 +142,7 @@ export class GameScene extends Phaser.Scene {
     this.laser = this.add.graphics().setDepth(14);
     this.bloodDecals = new BloodDecals(this);
     this.popups = new ScorePopups(this);
+    this.corpses = new Corpses(this);
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
     cam.centerOn(this.player.x, this.player.y);
@@ -241,6 +244,7 @@ export class GameScene extends Phaser.Scene {
     this.updateZombies(time);
     this.spits.advance(time, delta, this.live, this.player);
     this.popups.advance(delta);
+    this.corpses.advance(delta);
     this.updateBullets(time);
     this.updateProps(time, delta);
     this.light.flash = Math.max(0, this.light.flash - delta / 90);
@@ -476,6 +480,7 @@ export class GameScene extends Phaser.Scene {
     this.kills++;
     sfx.hit();
     if (brute) this.cameras.main.shake(150, 0.006);
+    this.corpses.leave(z, "kill");
     this.drops.drop(z.x, z.y);
     z.disableBody(true, true);
     if (detonates) this.explosions.detonateBloater(blastX, blastY);
