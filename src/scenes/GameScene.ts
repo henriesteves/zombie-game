@@ -25,7 +25,7 @@ import { nextMenuAction } from "../input/menu-action";
 import { shouldResumeWorld } from "../input/pause-gate";
 import { PickupDrops } from "../pickups/drops";
 import { readHighScore, recordHighScore } from "../score/high-score";
-import { isOutsideSpawnView, pickOffscreenPoint } from "../spawn/offscreen-point";
+import { pickOffscreenPoint } from "../spawn/offscreen-point";
 import { WaveDirector, maxAliveFor, modifierLabel, pickLiveKind, spawnIntervalMs } from "../waves/wave-director";
 import { layStreet } from "../world/street-view";
 import type { HudState } from "./UIScene";
@@ -215,7 +215,7 @@ export class GameScene extends Phaser.Scene {
       (b as unknown as Sprite).disableBody(true, true);
       this.explosions.explodeBarrel(br as unknown as Sprite);
     });
-    for (let i = 0; i < 6; i++) this.spawnZombie("walker");
+    for (let i = 0; i < 6; i++) if (this.spawnZombie("walker")) this.waves.noteSpawn();
   }
 
   update(time: number, delta: number) {
@@ -385,28 +385,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private advanceWave(delta: number) {
-    const event = this.waves.advance(delta);
-    if (event === "calm-started") this.beginCalm();
-    if (event === "fight-started") this.openFight();
-  }
-
-  private beginCalm() {
-    this.releaseOffscreenZombies();
+    if (this.waves.advance(delta) === "fight-started") this.openFight();
+    if (this.waves.phase !== "fight" || !this.waves.rosterFilled) return;
+    if (this.zombies.countActive(true) > 0) return;
+    if (this.waves.clear() !== "calm-started") return;
     this.drops.dropCalmCache();
   }
 
-  private releaseOffscreenZombies() {
-    const camera = this.cameras.main;
-    for (const child of this.zombies.getChildren()) {
-      const zombie = child as Zombie;
-      if (!zombie.active) continue;
-      if (!isOutsideSpawnView(zombie.x, zombie.y, camera.scrollX, camera.scrollY)) continue;
-      zombie.disableBody(true, true);
-    }
-  }
-
   private openFight() {
-    if (this.waves.modifier === "brute") this.spawnZombie("brute");
+    if (this.waves.modifier === "brute" && this.spawnZombie("brute")) this.waves.noteSpawn();
     if (this.waves.modifier === "alarms") this.alarmRandomCars();
   }
 
@@ -420,13 +407,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSpawns(delta: number) {
-    if (this.waves.phase === "calm") return;
+    if (this.waves.phase === "calm" || this.waves.rosterFilled) return;
     this.spawnTimer -= delta;
     if (this.spawnTimer > 0) return;
     const wave = this.waves.wave;
     this.spawnTimer = spawnIntervalMs(wave);
     if (this.zombies.countActive(true) >= maxAliveFor(wave)) return;
-    this.spawnZombie(this.rollZombie());
+    if (this.spawnZombie(this.rollZombie())) this.waves.noteSpawn();
   }
 
   private spawnZombie(kind: ZombieKind, near?: { x: number; y: number }): boolean {
@@ -584,6 +571,8 @@ export class GameScene extends Phaser.Scene {
       dead: this.dead,
       wave: this.waves.wave,
       phaseSeconds: this.waves.secondsLeft,
+      calm: this.waves.phase === "calm",
+      hordeLeft: this.waves.pending + this.zombies.countActive(true),
       banner: this.waveBanner(),
       combo: Math.min(COMBO_CAP, this.combo),
       comboLeft: this.combo <= 1 ? 0 : Math.max(0, (this.comboUntil - this.time.now) / COMBO_WINDOW_MS),

@@ -1,6 +1,6 @@
 import {
   BLOATER_CHANCE, SPAWN_BASE, SPAWN_CAP, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START, SPAWN_INTERVAL_STEP, SPAWN_PER_WAVE,
-  SPITTER_CHANCE, WAVE_BANNER_MS, WAVE_CALM_MS, WAVE_FIGHT_MS, type ZombieKind,
+  SPITTER_CHANCE, WAVE_BANNER_MS, WAVE_CALM_MS, type ZombieKind,
 } from "../config";
 
 export type WavePhase = "fight" | "calm";
@@ -69,45 +69,71 @@ export function spawnIntervalMs(wave: number): number {
   return Math.max(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START - (wave - 1) * SPAWN_INTERVAL_STEP);
 }
 
-export function maxAliveFor(wave: number): number {
+export function hordeSize(wave: number): number {
   return Math.min(SPAWN_CAP, SPAWN_BASE + wave * SPAWN_PER_WAVE);
+}
+
+export function maxAliveFor(wave: number): number {
+  return hordeSize(wave);
 }
 
 export class WaveDirector {
   wave = 1;
   phase: WavePhase = "fight";
+  spawned = 0;
   private phaseMs = 0;
 
   reset() {
     this.wave = 1;
     this.phase = "fight";
     this.phaseMs = 0;
+    this.spawned = 0;
   }
 
   get modifier(): WaveModifier {
     return modifierFor(this.wave);
   }
 
+  get roster(): number {
+    return hordeSize(this.wave);
+  }
+
+  get pending(): number {
+    return Math.max(0, this.roster - this.spawned);
+  }
+
+  get rosterFilled(): boolean {
+    return this.spawned >= this.roster;
+  }
+
   get secondsLeft(): number {
-    const limit = this.phase === "fight" ? WAVE_FIGHT_MS : WAVE_CALM_MS;
-    return Math.max(0, (limit - this.phaseMs) / 1000);
+    if (this.phase === "calm") return Math.max(0, (WAVE_CALM_MS - this.phaseMs) / 1000);
+    return this.phaseMs / 1000;
   }
 
   get showingIntro(): boolean {
     return this.phase === "fight" && this.phaseMs < WAVE_BANNER_MS;
   }
 
+  noteSpawn(count = 1): void {
+    this.spawned += count;
+  }
+
+  clear(): WaveEvent | null {
+    if (this.phase !== "fight" || !this.rosterFilled) return null;
+    this.phase = "calm";
+    this.phaseMs = 0;
+    return "calm-started";
+  }
+
   advance(deltaMs: number): WaveEvent | null {
     this.phaseMs += deltaMs;
-    const limit = this.phase === "fight" ? WAVE_FIGHT_MS : WAVE_CALM_MS;
-    if (this.phaseMs < limit) return null;
-    this.phaseMs -= limit;
-    if (this.phase === "fight") {
-      this.phase = "calm";
-      return "calm-started";
-    }
+    if (this.phase === "fight") return null;
+    if (this.phaseMs < WAVE_CALM_MS) return null;
+    this.phaseMs -= WAVE_CALM_MS;
     this.wave += 1;
     this.phase = "fight";
+    this.spawned = 0;
     return "fight-started";
   }
 }

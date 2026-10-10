@@ -18,6 +18,8 @@ export interface HudState {
   dead: boolean;
   wave: number;
   phaseSeconds: number;
+  calm: boolean;
+  hordeLeft: number;
   banner: string;
   combo: number;
   comboLeft: number;
@@ -130,7 +132,8 @@ export class UIScene extends Phaser.Scene {
     this.weaponText.setColor(isAmmoLow(s.ammo, s.ammoMax) ? "#ffb02e" : "#e8e8e8");
 
     const sec = String(Math.ceil(s.phaseSeconds)).padStart(2, "0");
-    this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n0:${sec}`);
+    const clock = s.calm ? `0:${sec}` : `FALTAM ${s.hordeLeft}`;
+    this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n${clock}`);
 
     this.overText.setVisible(s.dead);
     this.pauseText.setVisible(s.paused && !s.dead);

@@ -3,8 +3,8 @@
 Twin-stick shooter top-down em **Phaser 3 + TypeScript + Vite**. Todos os assets são gerados em código:
 nenhuma imagem ou áudio externo.
 
-A partida acontece numa rua entre prédios. Cada onda dura a luta, depois vem um respiro sem spawn novo
-e um cache no centro. O combo multiplica o score dos abates em sequência. A mira é um laser vermelho
+A partida acontece numa rua entre prédios. Cada onda solta uma horda finita. O respiro, com um cache no
+centro, só começa quando essa horda acaba. O combo multiplica o score dos abates em sequência. A mira é um laser vermelho
 que para no primeiro prédio, carro, barril ou zumbi. Carro destruído vira explosão de carro: dano em
 área, fogo e alarme que puxa mais zumbis.
 
