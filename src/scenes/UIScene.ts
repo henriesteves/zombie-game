@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { LOW_HP_RATIO, VIEW_H, VIEW_W } from "../config";
 import * as sfx from "../audio/sfx";
+import { isAmmoLow } from "../combat/ammo-warning";
 import { lowHealthBeatMs } from "../fx/low-health";
 import { arrowTriangle, hudArrows } from "../fx/offscreen-arrows";
 
@@ -9,6 +10,7 @@ export interface HudState {
   maxHp: number;
   weapon: string;
   ammo: number;
+  ammoMax: number;
   score: number;
   bestScore: number;
   kills: number;
@@ -118,6 +120,7 @@ export class UIScene extends Phaser.Scene {
 
     const ammo = Number.isFinite(s.ammo) ? String(s.ammo) : "∞";
     this.weaponText.setText(`${s.weapon}  ${ammo}`);
+    this.weaponText.setColor(isAmmoLow(s.ammo, s.ammoMax) ? "#ffb02e" : "#e8e8e8");
 
     const sec = String(Math.ceil(s.phaseSeconds)).padStart(2, "0");
     this.scoreText.setText(`ONDA ${s.wave}\nSCORE ${s.score}\nKILLS ${s.kills}\n0:${sec}`);

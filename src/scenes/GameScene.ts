@@ -568,6 +568,7 @@ export class GameScene extends Phaser.Scene {
       maxHp: PLAYER_MAX_HP,
       weapon: WEAPONS[this.weapon].name,
       ammo: this.ammo[this.weapon],
+      ammoMax: WEAPONS[this.weapon].ammoMax,
       score: this.score,
       bestScore: this.bestScore,
       kills: this.kills,

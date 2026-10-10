@@ -73,6 +73,7 @@ export function startingAmmo(): Record<WeaponId, number> {
 }
 
 export type PickupKind = "health" | "smg" | "shotgun";
+export const AMMO_LOW_RATIO = 0.2;
 
 // ---------- Zumbis ----------
 export type ZombieKind = "walker" | "runner" | "brute" | "bloater" | "spitter";
