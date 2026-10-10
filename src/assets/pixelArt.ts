@@ -88,3 +88,15 @@ export const BLOATER_HALF = [
   ".oYbbbbbbbbbbYgg",
 ];
 export const BLOATER_PALETTE: Palette = { o: "#24300c", Y: "#8aa04a", b: "#d6e36a", g: "#f4f0c8" };
+
+export const SPITTER_HALF = [
+  "................",
+  "....oooooo......",
+  "...oPPPPPPo.....",
+  "...oPPvvvPo.....",
+  "...oPvvvvPss....",
+  "....oPvvsssss...",
+  "....oPPPsss.....",
+  ".....oooo.......",
+];
+export const SPITTER_PALETTE: Palette = { o: "#160e22", P: "#6b458c", v: "#d6f26a", s: "#b6e24a" };

@@ -66,7 +66,7 @@ export function startingAmmo(): Record<WeaponId, number> {
 export type PickupKind = "health" | "smg" | "shotgun";
 
 // ---------- Zumbis ----------
-export type ZombieKind = "walker" | "runner" | "brute" | "bloater";
+export type ZombieKind = "walker" | "runner" | "brute" | "bloater" | "spitter";
 
 export interface ZombieCharge {
   range: number;
@@ -95,9 +95,17 @@ export const ZOMBIES: Record<ZombieKind, ZombieDef> = {
     charge: { range: 210, windupMs: 480, dashMs: 320, speed: 340, cooldownMs: 2600 },
   },
   bloater: { texture: "zombie_bloater", hp: 8, speed: 36, damage: 14, score: 40, radius: 18, knockback: 60, charge: null },
+  spitter: { texture: "zombie_spitter", hp: 4, speed: 70, damage: 8, score: 25, radius: 14, knockback: 90, charge: null },
 };
 
 export const BLOATER_CHANCE = 0.08;
+export const SPITTER_CHANCE = 0.06;
+export const SPITTER_RANGE = 220;
+export const SPITTER_COOLDOWN_MS = 1400;
+export const SPIT_SPEED = 180;
+export const SPIT_LIFE_MS = 1600;
+export const SPIT_DAMAGE = 12;
+export const SPIT_SPAWN_OFFSET = 20;
 export const BLOATER_BLAST_RADIUS = 120;
 export const BLOATER_ZOMBIE_DAMAGE = 18;
 export const BLOATER_PLAYER_DAMAGE = 30;

@@ -1,6 +1,6 @@
 import {
   BLOATER_CHANCE, SPAWN_BASE, SPAWN_CAP, SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START, SPAWN_INTERVAL_STEP, SPAWN_PER_WAVE,
-  WAVE_BANNER_MS, WAVE_CALM_MS, WAVE_FIGHT_MS, type ZombieKind,
+  SPITTER_CHANCE, WAVE_BANNER_MS, WAVE_CALM_MS, WAVE_FIGHT_MS, type ZombieKind,
 } from "../config";
 
 export type WavePhase = "fight" | "calm";
@@ -25,6 +25,7 @@ export interface SpawnBands {
   brute: number;
   runner: number;
   bloater: number;
+  spitter: number;
 }
 
 export function getSpawnBands(wave: number, modifier: WaveModifier): SpawnBands {
@@ -32,6 +33,7 @@ export function getSpawnBands(wave: number, modifier: WaveModifier): SpawnBands 
     brute: bruteChance(wave, modifier),
     runner: runnerChance(wave, modifier),
     bloater: wave >= 3 ? BLOATER_CHANCE : 0,
+    spitter: wave >= 4 ? SPITTER_CHANCE : 0,
   };
 }
 
@@ -53,12 +55,13 @@ export function pickSpawnKind(wave: number, modifier: WaveModifier, roll: number
   if (roll < bands.brute) return "brute";
   if (roll < bands.brute + bands.runner) return "runner";
   if (roll < bands.brute + bands.runner + bands.bloater) return "bloater";
+  if (roll < bands.brute + bands.runner + bands.bloater + bands.spitter) return "spitter";
   return "walker";
 }
 
 export function pickLiveKind(phase: WavePhase, wave: number, modifier: WaveModifier, roll: number): ZombieKind {
   const kind = pickSpawnKind(wave, modifier, roll);
-  if (phase === "calm" && kind === "bloater") return "walker";
+  if (phase === "calm" && (kind === "bloater" || kind === "spitter")) return "walker";
   return kind;
 }
 

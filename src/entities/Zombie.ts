@@ -20,6 +20,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
   chargeReadyAt = 0;
   chargeX = 1;
   chargeY = 0;
+  spitReadyAt = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, "zombie_walker");
@@ -37,6 +38,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.chargeState = "idle";
     this.chargeUntil = 0;
     this.chargeReadyAt = 0;
+    this.spitReadyAt = 0;
     this.setScale(1);
     this.setTexture(def.texture);
     this.setDepth(10);

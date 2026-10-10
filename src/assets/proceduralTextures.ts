@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {
   BLOATER_HALF, BLOATER_PALETTE, BRUTE_HALF, BRUTE_PALETTE, PLAYER_HALF, PLAYER_PALETTE, RUNNER_HALF, RUNNER_PALETTE,
-  WALKER_HALF, WALKER_PALETTE, fromHalf, makeTexture,
+  SPITTER_HALF, SPITTER_PALETTE, WALKER_HALF, WALKER_PALETTE, fromHalf, makeTexture,
 } from "./pixelArt";
 
 type Draw = (ctx: CanvasRenderingContext2D) => void;
@@ -62,6 +62,13 @@ export function generateAllTextures(scene: Phaser.Scene) {
   makeTexture(scene, "zombie_runner", fromHalf(RUNNER_HALF), RUNNER_PALETTE, 3);
   makeTexture(scene, "zombie_brute", fromHalf(BRUTE_HALF), BRUTE_PALETTE, 4);
   makeTexture(scene, "zombie_bloater", fromHalf(BLOATER_HALF), BLOATER_PALETTE, 4);
+  makeTexture(scene, "zombie_spitter", fromHalf(SPITTER_HALF), SPITTER_PALETTE, 3);
+  canvasTexture(scene, "spit", 8, 8, (ctx) => {
+    ctx.fillStyle = "#d6f26a";
+    ctx.beginPath();
+    ctx.arc(4, 4, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
 
   // ---------- Chão: asfalto com ruído, rachaduras e faixa ----------
   canvasTexture(scene, "asphalt", 128, 128, (ctx) => {

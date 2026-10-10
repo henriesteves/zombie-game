@@ -12,6 +12,7 @@ import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
 import { Gun } from "../combat/gun";
 import { drawLaserSight } from "../combat/laser-sight";
+import { SpitVolley } from "../combat/spit-volley";
 import { Zombie } from "../entities/Zombie";
 import { BloodDecals } from "../fx/blood-decals";
 import { FlashlightPipeline } from "../fx/FlashlightPipeline";
@@ -74,6 +75,7 @@ export class GameScene extends Phaser.Scene {
   private dash = new DashState();
   private dashTrail!: DashTrail;
   private gun!: Gun;
+  private spits!: SpitVolley;
 
   constructor() {
     super("Game");
@@ -120,6 +122,7 @@ export class GameScene extends Phaser.Scene {
     this.lamps = layStreet(this, this.buildings, this.cars, this.barrels);
     this.player = this.physics.add.sprite(WORLD_W / 2, WORLD_H / 2, "player").setDepth(12).setCollideWorldBounds(true);
     (this.player.body as Body).setCircle(14, 10, 10);
+    this.spits = new SpitVolley(this, this.player, this.buildings, (damage) => this.hurt(damage));
     this.blood = this.add.particles(0, 0, "blood_dot", {
       speed: { min: 60, max: 260 }, lifespan: { min: 250, max: 600 },
       scale: { start: 1.2, end: 0 }, alpha: { start: 1, end: 0 }, emitting: false,
@@ -235,6 +238,7 @@ export class GameScene extends Phaser.Scene {
     this.advanceWave(delta);
     this.updateSpawns(delta);
     this.updateZombies(time);
+    this.spits.advance(time, this.live, this.player);
     this.updateBullets(time);
     this.updateProps(time);
     this.light.flash = Math.max(0, this.light.flash - delta / 90);
