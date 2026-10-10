@@ -160,7 +160,7 @@ export const SPAWN_DEPTH_MIN = 48;
 export const SPAWN_DEPTH_MAX = 180;
 
 export const WAVE_FIGHT_MS = 35000;
-export const WAVE_CALM_MS = 8000;
+export const WAVE_CALM_MS = 15000;
 export const WAVE_BANNER_MS = 4000;
 export const SPAWN_INTERVAL_START = 900;
 export const SPAWN_INTERVAL_STEP = 70;

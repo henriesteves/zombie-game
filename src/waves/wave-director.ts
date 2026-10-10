@@ -69,6 +69,11 @@ export function spawnIntervalMs(wave: number): number {
   return Math.max(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_START - (wave - 1) * SPAWN_INTERVAL_STEP);
 }
 
+export function calmFill(secondsLeft: number, calmMs: number): number {
+  if (calmMs <= 0) return 0;
+  return Math.max(0, Math.min(1, secondsLeft / (calmMs / 1000)));
+}
+
 export function hordeSize(wave: number): number {
   return Math.min(SPAWN_CAP, SPAWN_BASE + wave * SPAWN_PER_WAVE);
 }

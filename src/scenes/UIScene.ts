@@ -1,7 +1,8 @@
 import Phaser from "phaser";
-import { LOW_HP_RATIO, VIEW_H, VIEW_W, type WeaponId } from "../config";
+import { LOW_HP_RATIO, VIEW_H, VIEW_W, WAVE_CALM_MS, type WeaponId } from "../config";
 import * as sfx from "../audio/sfx";
 import { isAmmoLow } from "../combat/ammo-warning";
+import { calmFill } from "../waves/wave-director";
 import { lowHealthBeatMs } from "../fx/low-health";
 import { arrowTriangle, hudArrows, type ThreatPoint } from "../fx/offscreen-arrows";
 import { WeaponWheelView } from "../combat/weapon-wheel-view";
@@ -40,6 +41,7 @@ export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private overText!: Phaser.GameObjects.Text;
   private alertText!: Phaser.GameObjects.Text;
+  private calmText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private pauseText!: Phaser.GameObjects.Text;
   private shownCombo = 0;
@@ -66,6 +68,9 @@ export class UIScene extends Phaser.Scene {
     }).setOrigin(0.5).setVisible(false);
     this.pauseText = this.add.text(VIEW_W / 2, VIEW_H / 2, "PAUSA", {
       fontFamily: "monospace", fontSize: "64px", color: "#f2efe4",
+    }).setOrigin(0.5).setVisible(false);
+    this.calmText = this.add.text(VIEW_W / 2, 128, "", {
+      fontFamily: "monospace", fontSize: "54px", color: "#e2c14a",
     }).setOrigin(0.5).setVisible(false);
     this.alertText = this.add.text(VIEW_W / 2, 48, "HORDA A CAMINHO", {
       fontFamily: "monospace", fontSize: "22px", color: "#ff4040", backgroundColor: "rgba(0,0,0,0.55)",
@@ -104,6 +109,19 @@ export class UIScene extends Phaser.Scene {
     this.g.fillStyle(0x7fd4ff, 1).fillRect(24, 48, 60 * s.dashRecharge, 4);
   }
 
+  private drawCalm(s: HudState) {
+    const show = s.calm && !s.dead && !s.wheelOpen;
+    this.calmText.setVisible(show);
+    if (!show) return;
+    const width = 320;
+    const x = (VIEW_W - width) / 2;
+    const y = 82;
+    const fill = (width - 4) * calmFill(s.phaseSeconds, WAVE_CALM_MS);
+    this.g.fillStyle(0x000000, 0.6).fillRect(x, y, width, 12);
+    this.g.fillStyle(0xe2c14a, 1).fillRect(x + 2, y + 2, fill, 8);
+    this.calmText.setText(String(Math.ceil(s.phaseSeconds)));
+  }
+
   private drawThreatArrows(s: HudState) {
     const arrows = hudArrows(s.threats, s.scrollX, s.scrollY);
     for (const arrow of arrows) {
@@ -124,6 +142,7 @@ export class UIScene extends Phaser.Scene {
     const alpha = critical ? 0.55 + 0.45 * Math.abs(Math.sin(this.pulse / 160)) : 1;
     g.fillStyle(critical ? 0xd03030 : 0x3aa655, alpha).fillRect(24, 24, 240 * pct, 16);
     this.drawDashMark(s);
+    this.drawCalm(s);
     this.drawThreatArrows(s);
     this.wheelView.paint(g, s);
 
@@ -153,7 +172,7 @@ export class UIScene extends Phaser.Scene {
     this.alertText.setVisible(showBanner);
     if (!showBanner) return;
     this.alertText.setText(s.banner);
-    this.alertText.setColor(s.banner === "RESPIRO" ? "#e2c14a" : "#ff4040");
+    this.alertText.setColor(s.banner === "PRÓXIMA HORDA" ? "#e2c14a" : "#ff4040");
     this.alertText.setAlpha(0.55 + 0.45 * Math.abs(Math.sin(s.phaseSeconds * 8)));
   }
 }

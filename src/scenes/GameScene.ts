@@ -546,7 +546,7 @@ export class GameScene extends Phaser.Scene {
 
   private waveBanner(): string {
     if (this.hasActiveAlarm(this.time.now)) return "HORDA A CAMINHO";
-    if (this.waves.phase === "calm") return "RESPIRO";
+    if (this.waves.phase === "calm") return "PRÓXIMA HORDA";
     if (this.waves.showingIntro) return `ONDA ${this.waves.wave} · ${modifierLabel(this.waves.modifier)}`;
     return "";
   }

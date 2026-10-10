@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { WAVE_CALM_MS, WAVE_FIGHT_MS } from "../src/config";
-import { WaveDirector, hordeSize, modifierFor, pickSpawnKind } from "../src/waves/wave-director";
+import { WaveDirector, calmFill, hordeSize, modifierFor, pickSpawnKind } from "../src/waves/wave-director";
 
 describe("WaveDirector", () => {
   it("holds the fight until the horde is filled, then opens the calm interval", () => {
@@ -21,6 +21,9 @@ describe("WaveDirector", () => {
     assert.equal(director.wave, 2);
     assert.equal(director.spawned, 0);
     assert.equal(director.modifier, "runners");
+    assert.equal(calmFill(WAVE_CALM_MS / 1000, WAVE_CALM_MS), 1);
+    assert.equal(calmFill(WAVE_CALM_MS / 2000, WAVE_CALM_MS), 0.5);
+    assert.equal(calmFill(0, WAVE_CALM_MS), 0);
     assert.equal(modifierFor(3), "brute");
     assert.equal(modifierFor(4), "alarms");
   });
