@@ -23,6 +23,8 @@ import { ScorePopups } from "../fx/score-popups";
 import { FlashlightPipeline } from "../fx/FlashlightPipeline";
 import { collectSceneLights } from "../fx/scene-lights";
 import { nextMenuAction } from "../input/menu-action";
+import { pauseInputFrom } from "../input/pause-control";
+import { PauseMenu } from "../input/pause-menu";
 import { shouldResumeWorld } from "../input/pause-gate";
 import { isExpired, remainMs } from "../time/remain-ms";
 import { PickupDrops } from "../pickups/drops";
@@ -34,7 +36,7 @@ import type { HudState } from "./UIScene";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 type Body = Phaser.Physics.Arcade.Body;
-type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE" | "Q", Phaser.Input.Keyboard.Key>;
+type Keys = Record<"W" | "A" | "S" | "D" | "R" | "ESC" | "SPACE" | "Q" | "ENTER" | "UP" | "DOWN" | "LEFT" | "RIGHT", Phaser.Input.Keyboard.Key>;
 
 export class GameScene extends Phaser.Scene {
   private player!: Sprite;
@@ -80,6 +82,7 @@ export class GameScene extends Phaser.Scene {
   private dash = new DashState();
   private knock = new PlayerKnock();
   private weaponWheel = new WeaponWheel();
+  private pauseMenu = new PauseMenu();
   private dashTrail!: DashTrail;
   private gun!: Gun;
   private spits!: SpitVolley;
@@ -114,6 +117,7 @@ export class GameScene extends Phaser.Scene {
     this.dash.reset();
     this.knock.reset();
     this.weaponWheel.reset();
+    this.pauseMenu.reset();
   }
 
   create() {
@@ -188,11 +192,12 @@ export class GameScene extends Phaser.Scene {
       camera: () => this.cameras.main,
     });
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE,Q") as Keys;
-    this.keys.ESC.on("down", this.onEscape, this);
+    this.keys = kb.addKeys("W,A,S,D,R,ESC,SPACE,Q,ENTER,UP,DOWN,LEFT,RIGHT") as Keys;
+    sfx.setMasterVolume(this.pauseMenu.volume);
+    this.keys.ESC.on("down", this.togglePause, this);
     this.keys.R.on("down", this.onRestartKey, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.keys.ESC.off("down", this.onEscape, this);
+      this.keys.ESC.off("down", this.togglePause, this);
       this.keys.R.off("down", this.onRestartKey, this);
     });
     bindWeaponHotkeys(kb, (id) => this.gun.set(id));
@@ -224,6 +229,7 @@ export class GameScene extends Phaser.Scene {
     if (this.dead || this.paused) {
       this.weaponWheel.cancel();
       this.laser.clear();
+      this.readPauseMenu();
       this.emitHud();
       return;
     }
@@ -268,11 +274,6 @@ export class GameScene extends Phaser.Scene {
     }));
   }
 
-  private onEscape() {
-    if (this.dead) return;
-    this.togglePause();
-  }
-
   private onRestartKey() {
     if (!this.dead) return;
     this.scene.restart();
@@ -290,16 +291,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isStartDown(pad: Phaser.Input.Gamepad.Gamepad | null): boolean {
-    if (!pad || pad.buttons.length <= GAMEPAD_START_BUTTON) return false;
-    return pad.isButtonDown(GAMEPAD_START_BUTTON);
+    return Boolean(pad && pad.buttons.length > GAMEPAD_START_BUTTON && pad.isButtonDown(GAMEPAD_START_BUTTON));
   }
 
   private togglePause() {
     if (this.dead) return;
     this.paused = !this.paused;
     if (!this.paused) return;
+    this.pauseMenu.open();
     this.physics.pause();
     this.laser.clear();
+  }
+
+  private readPauseMenu() {
+    if (!this.paused || this.dead) return;
+    const frame = this.pauseMenu.sample(pauseInputFrom(this.keys, this.getPad()));
+    if (frame.volumeChanged) sfx.setMasterVolume(frame.volume);
+    if (frame.action === "resume") this.togglePause();
+    if (frame.action === "restart") this.scene.restart();
   }
 
   private getPad(): Phaser.Input.Gamepad.Gamepad | null {
@@ -551,17 +560,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private waveBanner(): string {
-    if (this.hasActiveAlarm()) return "HORDA A CAMINHO";
+    for (const child of this.cars.getChildren()) {
+      if ((child.getData("alarmLeft") as number) > 0) return "HORDA A CAMINHO";
+    }
     if (this.waves.phase === "calm") return "PRÓXIMA HORDA";
     if (this.waves.showingIntro) return `ONDA ${this.waves.wave} · ${modifierLabel(this.waves.modifier)}`;
     return "";
-  }
-
-  private hasActiveAlarm(): boolean {
-    for (const child of this.cars.getChildren()) {
-      if ((child.getData("alarmLeft") as number) > 0) return true;
-    }
-    return false;
   }
 
   private emitHud() {
@@ -589,7 +593,7 @@ export class GameScene extends Phaser.Scene {
       scrollX: this.cameras.main.scrollX,
       scrollY: this.cameras.main.scrollY,
       wheelOpen: this.weaponWheel.open, wheelHighlight: this.weaponWheel.highlight, loadout: this.ammo,
-      elapsed: this.elapsed,
+      elapsed: this.elapsed, pauseIndex: this.pauseMenu.index, volume: this.pauseMenu.volume,
     };
     this.events.emit("hud", s);
   }

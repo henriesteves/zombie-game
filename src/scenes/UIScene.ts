@@ -6,6 +6,8 @@ import { calmFill } from "../waves/wave-director";
 import { lowHealthBeatMs } from "../fx/low-health";
 import { arrowTriangle, hudArrows, type ThreatPoint } from "../fx/offscreen-arrows";
 import { WeaponWheelView } from "../combat/weapon-wheel-view";
+import { volumeBar } from "../audio/volume";
+import { pauseMenuLines } from "../input/pause-menu";
 import { formatSurviveTime } from "../score/survive-time";
 
 export interface HudState {
@@ -35,6 +37,8 @@ export interface HudState {
   wheelHighlight: WeaponId | null;
   loadout: Record<WeaponId, number>;
   elapsed: number;
+  pauseIndex: number;
+  volume: number;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -48,6 +52,7 @@ export class UIScene extends Phaser.Scene {
   private nextHordeText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private pauseText!: Phaser.GameObjects.Text;
+  private pauseMenuText!: Phaser.GameObjects.Text;
   private shownCombo = 0;
   private hud: HudState | null = null;
   private beatLeft = 0;
@@ -70,9 +75,12 @@ export class UIScene extends Phaser.Scene {
     this.comboText = this.add.text(VIEW_W / 2, VIEW_H * 0.62, "", {
       fontFamily: "monospace", fontSize: "54px", color: "#f2efe4",
     }).setOrigin(0.5).setVisible(false);
-    this.pauseText = this.add.text(VIEW_W / 2, VIEW_H / 2, "PAUSA", {
+    this.pauseText = this.add.text(VIEW_W / 2, VIEW_H / 2 - 90, "PAUSA", {
       fontFamily: "monospace", fontSize: "64px", color: "#f2efe4",
     }).setOrigin(0.5).setVisible(false);
+    this.pauseMenuText = this.add.text(VIEW_W / 2, VIEW_H / 2 + 20, "", {
+      fontFamily: "monospace", fontSize: "28px", color: "#f2efe4", align: "left",
+    }).setOrigin(0.5, 0).setVisible(false);
     this.calmText = this.add.text(VIEW_W / 2, 128, "", {
       fontFamily: "monospace", fontSize: "54px", color: "#e2c14a",
     }).setOrigin(0.5).setVisible(false);
@@ -166,7 +174,10 @@ export class UIScene extends Phaser.Scene {
     );
 
     this.overText.setVisible(s.dead);
-    this.pauseText.setVisible(s.paused && !s.dead);
+    const showPause = s.paused && !s.dead;
+    this.pauseText.setVisible(showPause);
+    this.pauseMenuText.setVisible(showPause);
+    if (showPause) this.pauseMenuText.setText(pauseMenuLines(s.pauseIndex, s.volume, volumeBar));
     if (s.dead) this.overText.setText(`VOCÊ MORREU\nonda ${s.wave}\nscore ${s.score} · kills ${s.kills}\nrecorde ${s.bestScore}\ntempo ${formatSurviveTime(s.elapsed)}\n\npressione R para reiniciar`);
     const showCombo = s.combo >= 2 && !s.dead && !s.wheelOpen;
     this.comboText.setVisible(showCombo);

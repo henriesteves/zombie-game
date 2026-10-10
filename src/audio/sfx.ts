@@ -1,4 +1,4 @@
-// SFX 100% procedurais (Web Audio). Nenhum arquivo de áudio necessário.
+import { clampVolume, readVolume } from "./volume";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -13,13 +13,18 @@ export function unlockAudio() {
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
-    master.gain.value = 0.5;
+    master.gain.value = readVolume();
     master.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
   if (ctx.state === "suspended") void ctx.resume();
+}
+
+export function setMasterVolume(value: number) {
+  if (!master) return;
+  master.gain.value = clampVolume(value);
 }
 
 interface BurstOpts { dur: number; vol: number; f0: number; f1: number; type?: BiquadFilterType }
