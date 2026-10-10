@@ -43,7 +43,7 @@ export interface Fire {
 
 export interface ExplosionHost {
   damageZombie(zombie: Zombie, damage: number, angle: number): void;
-  hurt(damage: number): void;
+  hurt(damage: number, origin: { x: number; y: number }): void;
   holdImpact(ms: number): void;
   addDecal(x: number, y: number, tint: number, scale: number): void;
   spawnPickup(x: number, y: number, kind: PickupKind): void;
@@ -101,7 +101,7 @@ export class Explosions {
     }
     const player = this.host.player();
     if (!isInsideFire(player, fire, CAR_FIRE_RADIUS)) return;
-    this.host.hurt(CAR_FIRE_PLAYER_DAMAGE);
+    this.host.hurt(CAR_FIRE_PLAYER_DAMAGE, fire);
   }
 
   strikeCar(car: Sprite) {
@@ -176,7 +176,7 @@ export class Explosions {
     const distance = Phaser.Math.Distance.Between(player.x, player.y, x, y);
     if (distance >= radius) return;
     const falloff = 1 - (distance / radius) * PLAYER_FALLOFF;
-    this.host.hurt(Math.round(playerDamage * falloff));
+    this.host.hurt(Math.round(playerDamage * falloff), { x, y });
   }
 
   private chainFromBlast(x: number, y: number, radius: number) {

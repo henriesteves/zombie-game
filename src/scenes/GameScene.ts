@@ -11,6 +11,7 @@ import { DashState } from "../combat/dash-state";
 import { DashTrail } from "../combat/dash-trail";
 import { Explosions } from "../combat/explosions";
 import { Gun } from "../combat/gun";
+import { PlayerKnock } from "../combat/player-knock";
 import { drawLaserSight } from "../combat/laser-sight";
 import { SpitVolley } from "../combat/spit-volley";
 import { Zombie } from "../entities/Zombie";
@@ -74,6 +75,7 @@ export class GameScene extends Phaser.Scene {
   private padConfirmDown = false;
   private paused = false;
   private dash = new DashState();
+  private knock = new PlayerKnock();
   private dashTrail!: DashTrail;
   private gun!: Gun;
   private spits!: SpitVolley;
@@ -106,6 +108,7 @@ export class GameScene extends Phaser.Scene {
     this.combo = 0;
     this.comboUntil = 0;
     this.dash.reset();
+    this.knock.reset();
   }
 
   create() {
@@ -154,7 +157,7 @@ export class GameScene extends Phaser.Scene {
     });
     this.explosions = new Explosions(this, {
       damageZombie: (zombie, damage, angle) => this.damageZombie(zombie, damage, angle),
-      hurt: (damage) => this.hurt(damage),
+      hurt: (damage, origin) => this.hurt(damage, origin),
       holdImpact: (ms) => this.holdImpact(ms),
       addDecal: (x, y, tint, scale) => this.bloodDecals.add(x, y, tint, scale),
       spawnPickup: (x, y, kind) => this.drops.spawn(x, y, kind),
@@ -336,7 +339,8 @@ export class GameScene extends Phaser.Scene {
     const len = Math.hypot(mx, my);
     if (len > 1) { mx /= len; my /= len; }
     const motion = this.dash.velocity(delta, wantsDash, mx, my, aim);
-    this.player.setVelocity(motion.x, motion.y);
+    const knock = this.knock.velocity(delta);
+    this.player.setVelocity(knock?.x ?? motion.x, knock?.y ?? motion.y);
     this.dashTrail.paint(this.player.x, this.player.y, delta, this.dash.active);
     this.player.setRotation(aim);
     if (time < this.invulnUntil) this.player.setTint(Math.floor(time / 80) % 2 ? 0xff5555 : 0xffffff);
@@ -354,26 +358,28 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private hurt(dmg: number) {
-    if (this.dead) return;
+  private hurt(dmg: number, origin?: { x: number; y: number }) {
+    if (this.dead || dmg <= 0) return;
     this.hp -= dmg;
+    const survived = this.hp > 0;
+    if (survived && origin) this.knock.replace(this.player.x, this.player.y, origin.x, origin.y);
     this.invulnUntil = this.time.now + 500;
     sfx.hurt();
     this.cameras.main.shake(140, 0.007);
-    if (this.hp <= 0) {
-      this.hp = 0;
-      this.dead = true;
-      this.dash.cancel();
-      this.dashTrail.reset();
-      this.bestScore = recordHighScore(this.score);
-      this.physics.pause();
-      this.player.setTint(0x550000);
-    }
+    if (survived) return;
+    this.hp = 0;
+    this.dead = true;
+    this.knock.reset();
+    this.dash.cancel();
+    this.dashTrail.reset();
+    this.bestScore = recordHighScore(this.score);
+    this.physics.pause();
+    this.player.setTint(0x550000);
   }
 
   private onZombieTouch(z: Zombie) {
     if (this.dead || !z.active || this.time.now < this.invulnUntil) return;
-    this.hurt(z.damage);
+    this.hurt(z.damage, z);
   }
 
   private advanceWave(delta: number) {
