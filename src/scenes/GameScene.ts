@@ -15,6 +15,7 @@ import { drawLaserSight } from "../combat/laser-sight";
 import { SpitVolley } from "../combat/spit-volley";
 import { Zombie } from "../entities/Zombie";
 import { BloodDecals } from "../fx/blood-decals";
+import { ScorePopups } from "../fx/score-popups";
 import { FlashlightPipeline } from "../fx/FlashlightPipeline";
 import { collectSceneLights } from "../fx/scene-lights";
 import { nextMenuAction } from "../input/menu-action";
@@ -76,6 +77,7 @@ export class GameScene extends Phaser.Scene {
   private dashTrail!: DashTrail;
   private gun!: Gun;
   private spits!: SpitVolley;
+  private popups!: ScorePopups;
 
   constructor() {
     super("Game");
@@ -134,6 +136,7 @@ export class GameScene extends Phaser.Scene {
     this.shadows = this.add.graphics().setDepth(4);
     this.laser = this.add.graphics().setDepth(14);
     this.bloodDecals = new BloodDecals(this);
+    this.popups = new ScorePopups(this);
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
     cam.centerOn(this.player.x, this.player.y);
@@ -239,6 +242,7 @@ export class GameScene extends Phaser.Scene {
     this.updateSpawns(delta);
     this.updateZombies(time);
     this.spits.advance(time, this.live, this.player);
+    this.popups.advance(delta);
     this.updateBullets(time);
     this.updateProps(time);
     this.light.flash = Math.max(0, this.light.flash - delta / 90);
@@ -467,7 +471,7 @@ export class GameScene extends Phaser.Scene {
     if (detonates) z.suppressBlast = true;
     this.blood.explode(brute ? 26 : 12, z.x, z.y);
     this.bloodDecals.add(z.x, z.y, 0xffffff, brute ? 1.6 : Phaser.Math.FloatBetween(0.7, 1.1));
-    this.registerKill(def.score);
+    this.popups.spawn(z.x, z.y, this.registerKill(def.score));
     this.kills++;
     sfx.hit();
     if (brute) this.cameras.main.shake(150, 0.006);
@@ -476,12 +480,14 @@ export class GameScene extends Phaser.Scene {
     if (detonates) this.explosions.detonateBloater(blastX, blastY);
   }
 
-  private registerKill(baseScore: number) {
+  private registerKill(baseScore: number): number {
     const now = this.time.now;
     this.combo = now <= this.comboUntil ? this.combo + 1 : 1;
     this.comboUntil = now + COMBO_WINDOW_MS;
-    this.score += baseScore * Math.min(COMBO_CAP, this.combo);
+    const gained = baseScore * Math.min(COMBO_CAP, this.combo);
+    this.score += gained;
     if (this.combo > 1 && this.combo % 5 === 0) sfx.comboMark();
+    return gained;
   }
 
   private expireCombo(time: number) {
