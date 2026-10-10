@@ -2,14 +2,14 @@
 
 Lista para uma IA executar **um passo por vez**. Não comece o passo seguinte se a validação do atual falhou.
 
-A lista anterior (pausa, respiro que recolhe a horda, laser, bloater, recorde, gamepad e partição da cena) está feita. Esta é a seguinte.
+A lista anterior (fogo que queima, dash, spitter, pontos que sobem do corpo, pouca vida, seta fora da tela, fumaça do carro e empurrão) está feita. Esta é a seguinte.
 
 ## Regras
 
 - Código, nomes e comentários novos em inglês. Textos da tela continuam em português.
 - Constantes de jogo ficam em `src/config.ts`. Não duplique números na cena.
-- Não refaça o que já existe: flow field, rua, ondas, combo, laser, explosão de carro, lanterna com postes e fogo visual, hit-stop, sangue que seca, pausa, recolhimento do respiro, bloater, recorde local, Start e A no gamepad.
-- Recurso novo não nasce em `GameScene.ts` se couber num módulo que já existe (`combat`, `pickups`, `ai`, `fx`, `waves`). A cena continua abaixo de 600 linhas.
+- Não refaça o que já existe: flow field, rua, ondas, combo, laser, explosão de carro, lanterna com postes e fogo que queima, hit-stop, sangue que seca, pausa, recolhimento do respiro, bloater, recorde local, Start e A no gamepad, dash, spitter, texto `+N`, batimento da vida baixa, setas do HUD, fumaça do carro e empurrão.
+- Recurso novo não nasce em `GameScene.ts` se couber num módulo que já existe (`combat`, `pickups`, `ai`, `fx`, `waves`). A cena continua abaixo de 600 linhas. Ela já está perto desse teto: uma chamada curta na cena, o resto no módulo.
 - Não adicione co-op, Colyseus, Tiled, loja, lança-chamas, mina nem ranking online nesta lista.
 - Não faça commit a menos que a pessoa peça.
 - Cada passo termina com `npm test` e `npm run build` sem erro.
@@ -23,107 +23,111 @@ A lista anterior (pausa, respiro que recolhe a horda, laser, bloater, recorde, g
 
 ---
 
-## Passo 1 — Fogo que queima
+## Passo 1 — Marca do dash
 
-**Objetivo.** O carro destruído acende um fogo, mas ele só ilumina. Quem fica em cima não perde vida.
+**Objetivo.** O dash existe, mas depois do impulso não há como saber quando ele volta.
 
-**Fazer.** Enquanto o fogo existe, zumbi e jogador dentro de um raio menor que `CAR_BLAST_RADIUS` perdem vida em ticks. O tick e o dano ficam em `config.ts`, menores que `CAR_ZOMBIE_DAMAGE` e `CAR_PLAYER_DAMAGE`. Não dispara alarme, não cria outro carro e não conta um abate extra além do que `killZombie` já faz. Um bloater que morre no fogo estoura uma vez, como qualquer outra morte. Na pausa o fogo não ticka. Ao apagar, o dano para.
+**Fazer.** Uma marca pequena no HUD, na `UIScene`, mostra o quanto falta da recarga que `DashState` já guarda. Não crie um segundo relógio. Recarga cheia: a marca some ou fica quieta. No meio: ela acompanha o restante. Pausa não avança esse restante, porque o dash já congela quando `velocity` não é chamado. Morrer ou reiniciar esconde a marca. Não mude `DASH_MS`, `DASH_SPEED`, Espaço nem o botão B.
 
-**Não fazer.** Não mude o raio da explosão do carro nem a duração visual que já existe.
+**Não fazer.** Não crie outro PostFX. Não dê invulnerabilidade ao dash.
 
-**Validação.** Teste: um ponto dentro do raio do fogo é atingido; um ponto fora não é. No jogo: estoure um carro, fique na chama e a vida desce; saia e ela para. Um zumbi parado na chama perde vida. `npm test` e `npm run build` passam.
+**Validação.** Teste: restante zero está pronto; restante igual à recarga está no começo; um valor no meio cai entre os dois. No jogo: dispare o dash e a marca aparece; Esc no meio não a completa; Esc de novo continua do mesmo ponto; quando ela acaba, Espaço dispara outro dash. `npm test` e `npm run build` passam.
 
-**Pronto quando.** Os dois pontos do teste e os dois gestos no jogo acontecem.
-
----
-
-## Passo 2 — Dash
-
-**Objetivo.** O jogador não tem como sair de um cerco além de andar.
-
-**Fazer.** Espaço no teclado e o botão da direita do gamepad (B / Circle) disparam um impulso na direção do movimento. Se estiver parado, o impulso segue a mira. Dura pouco, tem recarga, e mostra um rastro curto. Não dispara durante a pausa, a morte, a recarga ou um hit-stop. A pausa congela o impulso que já começou; ao soltar, o tempo restante continua. Morrer no meio cancela. R no restart não deixa o dash preso.
-
-**Não fazer.** Não dê invulnerabilidade. Não use o analógico direito: ele continua sendo mira e tiro.
-
-**Validação.** No jogo: segure uma direção, aperte Espaço, e o deslocamento nesse instante é maior que o passo normal. Aperte de novo na hora: não sai outro. Esc no meio para o corpo; Esc de novo completa o resto. Sem controle, o teclado basta. `npm run build` passa.
-
-**Pronto quando.** Os três gestos acontecem e o tiro no analógico direito não virou dash.
+**Pronto quando.** A marca e a recarga real concordam nos três momentos.
 
 ---
 
-## Passo 3 — Zumbi que cospe
+## Passo 2 — Spitter segura o cuspe
 
-**Objetivo.** Falta um tipo que ameaça à distância.
+**Objetivo.** O globo sai no mesmo frame em que o spitter entra na distância.
 
-**Fazer.** Quinto tipo, `spitter`, com textura própria em `pixelArt.ts`. Mais lento que o runner, para fora do contato e solta um projétil lento na direção do jogador. O projétil machuca só o jogador, some no impacto ou no fim da vida, e não atravessa prédio. Não é bala das armas e não estoura como bloater. Só entra no spawn a partir da onda 4, com chance baixa, e nunca no respiro.
+**Fazer.** Antes do projétil, o spitter segura por `SPITTER_WINDUP_MS` em `config.ts`, menor que `SPITTER_COOLDOWN_MS`, e troca de cor. O projétil só nasce quando a espera acaba, o spitter ainda está ativo e ainda está na distância. Se ele sair da distância ou morrer no meio, o projétil não sai e a recarga do cuspe conta essa tentativa. Pausa congela a espera. Uma espera completa gera um projétil, não dois. Não mude velocidade, dano, vida nem o fato de o prédio segurar o globo.
 
-**Validação.** Teste de `pickSpawnKind` ou da função nova: onda 3 nunca devolve `spitter`; onda 4 com o roll da faixa dele devolve `spitter`; respiro não devolve. No jogo: um spitter isolado acerta o jogador sem encostar; um prédio no meio segura o projétil. `npm test` e `npm run build` passam.
+**Validação.** Teste: espera incompleta não pede disparo; espera completa dentro da distância pede um; espera completa fora da distância ou com o spitter inativo não pede. No jogo: um spitter isolado muda de cor e só então cospe; saia da distância durante a cor e nada chega. `npm test` e `npm run build` passam.
 
-**Pronto quando.** Os três casos acontecem.
-
----
-
-## Passo 4 — Pontos que sobem do corpo
-
-**Objetivo.** O combo muda o score, mas o número some no canto.
-
-**Fazer.** Cada abate solta um texto `+N` na posição do zumbi. `N` é o que entrou no score naquele abate, já com o multiplicador do combo, sem somar de novo. O texto sobe e some. Na pausa ele congela; ao continuar, termina o movimento. Não aparece para zumbi só recolhido no respiro.
-
-**Validação.** Mate um zumbi de 10 pontos sem combo: aparece `+10` e o score sobe 10, não 20. Mate outro dentro da janela do combo: o texto mostra o valor multiplicado. Esc no meio deixa o texto parado. `npm run build` passa.
-
-**Pronto quando.** Os dois números batem com o score e a pausa segura o texto.
+**Pronto quando.** Os três casos do teste acontecem e o prédio continua segurando o globo que sai.
 
 ---
 
-## Passo 5 — Pouca vida
+## Passo 3 — Caixa que se aproxima
 
-**Objetivo.** A barra fica vermelha, mas a partida não avisa que a morte está perto.
+**Objetivo.** A caixa caída no escuro só entra no inventário se o jogador pisar nela.
 
-**Fazer.** Abaixo de um limite em `config.ts`, a barra do HUD pulsa e um batimento toca em intervalo. Quanto menor a vida, mais rápido o intervalo, com um piso. Acima do limite, o som para. Morrer ou curar para cima do limite para na hora. Pausa suspende o som; soltar a pausa não dispara um batimento extra.
+**Fazer.** Caixa ativa dentro de um raio em `config.ts`, menor que 120, anda na direção do jogador a uma velocidade também em `config.ts`. Só coleta no overlap que já existe. Vida cheia não puxa caixa de vida e não a destrói. Arma cheia não puxa a caixa dessa arma. Fora do raio, a caixa fica onde está. Pausa congela o deslize. O prazo de sumiço da caixa continua valendo.
 
-**Não fazer.** Não crie outro PostFX. O pulso fica na barra que já existe em `UIScene`.
+**Não fazer.** Não puxe caixa do outro lado da rua. Não colete através de prédio.
 
-**Validação.** No jogo: desça a vida até o limite e o batimento começa; pegue vida até passar do limite e ele para. Esc cala; Esc de novo não solta dois batimentos juntos. `npm run build` passa.
+**Validação.** Teste: dentro do raio e aceita, o passo chega mais perto; fora do raio, a posição não muda; tipo recusado, a posição não muda. No jogo: deixe uma caixa de SMG perto e ela vem; afaste-se além do raio e ela para; com a vida cheia, a caixa de vida não vem. Esc no meio deixa a caixa parada. `npm test` e `npm run build` passam.
 
-**Pronto quando.** Os três gestos acontecem.
-
----
-
-## Passo 6 — Seta para zumbi fora da tela
-
-**Objetivo.** A horda chega pelas costas e a lanterna não mostra.
-
-**Fazer.** Para cada zumbi ativo fora do retângulo da câmera, uma seta na borda do HUD aponta para ele. Teto de setas ao mesmo tempo, constante em `config.ts`. Zumbi dentro da tela não ganha seta. Zumbi morto ou recolhido no respiro perde a seta. As setas ficam na `UIScene`, para a lanterna não apagá-las. Na pausa elas continuam visíveis e não giram, porque os zumbis não andam.
-
-**Validação.** No jogo: deixe um zumbi sair da tela e a seta aparece na borda correspondente; quando ele entra na tela, a seta some. Recolha a horda no respiro e as setas dos que sumiram somem junto. `npm run build` passa.
-
-**Pronto quando.** Os dois gestos acontecem e a seta continua legível no escuro.
+**Pronto quando.** Os três casos do teste e os três gestos no jogo acontecem.
 
 ---
 
-## Passo 7 — Carro avisa antes de estourar
+## Passo 4 — Horda em volta, não em cima
 
-**Objetivo.** O carro explode nos `CAR_HITS`, mas até lá parece inteiro.
+**Objetivo.** Vários zumbis ocupam o mesmo ponto do jogador.
 
-**Fazer.** A partir de um limiar de acertos, menor que `CAR_HITS` e declarado em `config.ts`, o carro solta fumaça. A explosão, o alarme e o loot continuam no mesmo acerto de hoje. Fumaça não dá dano. Carro destruído não fica fumegando por cima da explosão.
+**Fazer.** Zumbi ativo dentro de um raio do jogador, em `config.ts`, recebe um empurrão para fora, somado à direção que já tem, com teto de comprimento também em `config.ts`. Fora do raio, o empurrão é zero. Não substitui o flow field. Não empurra zumbi inativo. Brute em investida ou em preparação não recebe esse empurrão. Pausa já não roda a horda, então o empurrão também não roda.
 
-**Validação.** Teste: abaixo do limiar a função não pede fumaça; no limiar pede; em `CAR_HITS` ainda é explosão, não só fumaça. No jogo: atire até a fumaça aparecer e o carro continuar inteiro; mais tiros estouram como antes. `npm test` e `npm run build` passam.
+**Não fazer.** Não empurre o jogador neste passo. O empurrão do jogador continua só no dano.
 
-**Pronto quando.** O teste e os tiros no carro batem com esses dois momentos.
+**Validação.** Teste: ponto dentro do raio devolve um vetor para fora, com comprimento até o teto; ponto fora devolve vetor zero. No jogo: dois walkers que alcançam o jogador não ficam no mesmo coordenada; um brute no meio da investida não é desviado para o lado. `npm test` e `npm run build` passam.
+
+**Pronto quando.** O teste e os dois encontros no jogo acontecem.
 
 ---
 
-## Passo 8 — Empurrão ao levar dano
+## Passo 5 — Munição baixa
 
-**Objetivo.** O zumbi encosta e a vida desce, mas o corpo não sai do lugar.
+**Objetivo.** A SMG e a shotgun chegam a zero, fazem um clique e voltam para a pistola sem aviso.
 
-**Fazer.** Dano de zumbi, explosão e fogo empurra o jogador para longe da origem do dano por um impulso curto. Um empurrão novo substitui o anterior; não soma velocidade até lançar o jogador no infinito. Pausa congela o impulso. Morte zera. Dash e empurrão no mesmo instante: o empurrão vence.
+**Fazer.** Abaixo de uma fração de `ammoMax` em `config.ts`, o número da munição no HUD muda de cor. A pistola, com munição infinita, não muda. Ao chegar a zero, o clique e a volta para a pistola continuam como hoje, e a cor volta ao normal junto com a pistola. Pegar munição até passar da fração restaura a cor. Não é animação com relógio: pausa não entra nisso.
 
-**Não fazer.** Não empurre o jogador quando a vida não desce (cura, pickup recusado, dano zero).
+**Não fazer.** Não mude os números de `WEAPONS` nem o tamanho do pickup.
 
-**Validação.** No jogo: deixe um zumbi encostar e o jogador se afasta dele. Estoure um barril ao lado e o jogador sai do centro da explosão. Cure com a vida cheia: não há empurrão. `npm run build` passa.
+**Validação.** Teste: acima da fração não avisa; abaixo avisa; munição infinita nunca avisa; zero de arma finita avisa. No jogo: gaste a SMG até o número mudar de cor; pegue munição de SMG até passar da fração e a cor volta; a pistola fica na cor de sempre. `npm test` e `npm run build` passam.
 
-**Pronto quando.** Os três casos acontecem e o jogador não atravessa o mapa num único hit.
+**Pronto quando.** Os quatro casos do teste e os três gestos no jogo acontecem.
+
+---
+
+## Passo 6 — Seta diz o tipo
+
+**Objetivo.** Toda seta é da mesma cor, e um spitter fora da tela parece um walker.
+
+**Fazer.** Cada tipo de zumbi tem uma cor de seta. A conta da borda, o teto e o sumiço continuam os que já existem em `offscreen-arrows`. Zumbi dentro da tela não ganha seta. Zumbi morto ou recolhido no respiro continua sem seta. As setas continuam na `UIScene`. Na pausa elas continuam visíveis e não giram.
+
+**Não fazer.** Não aumente `OFFSCREEN_ARROW_CAP`. Não desenhe seta em cima de zumbi que já está na tela.
+
+**Validação.** Teste: walker e spitter fora da tela, na mesma situação, devolvem cores diferentes; um ponto dentro da tela não devolve seta. No jogo: um spitter fora por uma borda e um walker fora por outra mostram duas cores; quando o spitter entra na tela, só a seta do walker fica. `npm test` e `npm run build` passam.
+
+**Pronto quando.** As duas cores do teste aparecem no HUD e a seta do spitter some quando ele entra.
+
+---
+
+## Passo 7 — Corpo que fica
+
+**Objetivo.** O abate vira sangue e o sprite some no mesmo frame.
+
+**Fazer.** Cada abate deixa um corpo sem física no lugar da morte. Ele some depois de um tempo em `config.ts`. Não é zumbi: não dá ponto de novo, não ganha seta, não machuca, não bloqueia o flow field e não estoura como bloater. O fade só anda quando o mundo anda; na pausa o corpo fica. Zumbi só recolhido no respiro não deixa corpo. Reiniciar limpa os corpos. Um bloater morto estoura uma vez e deixa um corpo.
+
+**Validação.** Teste: abate pede corpo; recolhimento do respiro não pede. Com o relógio parado, a transparência do corpo não muda. No jogo: mate um walker e o corpo fica; Esc no meio o segura; mate um bloater e há uma explosão e um corpo. `npm test` e `npm run build` passam.
+
+**Pronto quando.** O abate deixa corpo, o respiro não deixa, e a pausa segura o que já está no chão.
+
+---
+
+## Passo 8 — Bloater incha
+
+**Objetivo.** O bloater estoura, mas até o tiro fatal parece um zumbi comum.
+
+**Fazer.** Abaixo de uma fração da vida máxima, em `config.ts`, e ainda vivo, o bloater fica maior que o tamanho normal. Acima da fração, tamanho normal. O tiro que mata continua estourando uma vez, pelo caminho que já existe. Se um único tiro leva a vida de cheia a zero, estoura uma vez também, sem ficar inchado depois de morto. Morrer cancela o inchaço. Não mude `BLOATER_BLAST_RADIUS` nem os danos da explosão.
+
+**Não fazer.** Não faça o inchaço disparar uma segunda explosão.
+
+**Validação.** Teste: vida acima da fração pede tamanho normal; vida abaixo e maior que zero pede inchado; vida zero não pede inchado. No jogo: atire num bloater até ele crescer e continuar vivo; o tiro seguinte estoura uma vez. `npm test` e `npm run build` passam.
+
+**Pronto quando.** O teste separa os três estados e o bloater do jogo cresce antes do estouro.
 
 ---
 
