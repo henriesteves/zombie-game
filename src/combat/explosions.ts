@@ -2,10 +2,12 @@ import Phaser from "phaser";
 import * as sfx from "../audio/sfx";
 import {
   BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE, BLAST_STOP_MS, BLOATER_BLAST_RADIUS, BLOATER_PLAYER_DAMAGE,
-  BLOATER_ZOMBIE_DAMAGE, CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_FIRE_MS, CAR_HITS, CAR_PLAYER_DAMAGE,
+  BLOATER_ZOMBIE_DAMAGE, CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_FIRE_MS, CAR_FIRE_PLAYER_DAMAGE,
+  CAR_FIRE_RADIUS, CAR_FIRE_TICK_MS, CAR_FIRE_ZOMBIE_DAMAGE, CAR_HITS, CAR_PLAYER_DAMAGE,
   CAR_ZOMBIE_DAMAGE, EXPLOSION_RADIUS, type PickupKind,
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
+import { isInsideFire } from "./fire-burn";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
 
@@ -30,6 +32,7 @@ export interface Fire {
   y: number;
   life: number;
   max: number;
+  sinceBurn: number;
   sprite: Phaser.GameObjects.Image;
 }
 
@@ -69,7 +72,23 @@ export class Explosions {
       const fade = fire.life / fire.max;
       const flicker = 0.85 + Math.sin(fire.life / 45) * 0.15;
       fire.sprite.setAlpha(fade).setScale((0.8 + fade * 0.7) * flicker);
+      fire.sinceBurn += delta;
+      if (fire.sinceBurn < CAR_FIRE_TICK_MS) continue;
+      fire.sinceBurn -= CAR_FIRE_TICK_MS;
+      this.burnAround(fire);
     }
+  }
+
+  private burnAround(fire: Fire) {
+    for (const zombie of this.host.zombies().slice()) {
+      if (!zombie.active) continue;
+      if (!isInsideFire(zombie, fire, CAR_FIRE_RADIUS)) continue;
+      const angle = Math.atan2(zombie.y - fire.y, zombie.x - fire.x);
+      this.host.damageZombie(zombie, CAR_FIRE_ZOMBIE_DAMAGE, angle);
+    }
+    const player = this.host.player();
+    if (!isInsideFire(player, fire, CAR_FIRE_RADIUS)) return;
+    this.host.hurt(CAR_FIRE_PLAYER_DAMAGE);
   }
 
   strikeCar(car: Sprite) {
@@ -110,7 +129,7 @@ export class Explosions {
 
   private ignite(x: number, y: number) {
     const sprite = this.scene.add.image(x, y, "flame").setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
-    this.fires.push({ x, y, life: CAR_FIRE_MS, max: CAR_FIRE_MS, sprite });
+    this.fires.push({ x, y, life: CAR_FIRE_MS, max: CAR_FIRE_MS, sinceBurn: 0, sprite });
   }
 
   private playBlast(x: number, y: number, radius: number) {
