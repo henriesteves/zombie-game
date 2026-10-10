@@ -1,6 +1,6 @@
 import {
   ALARM_SPAWN_SPREAD, SPAWN_DEPTH_MAX, SPAWN_DEPTH_MIN, SPAWN_VIEW_MARGIN,
-  VIEW_H, VIEW_W, WORLD_H, WORLD_INSET, WORLD_W,
+  STREET_LEFT, STREET_RIGHT, VIEW_H, VIEW_W, WORLD_H, WORLD_INSET,
 } from "../config";
 
 export interface SpawnPoint {
@@ -29,18 +29,23 @@ function randomBetween(min: number, max: number): number {
 }
 
 function offscreenRects(scrollX: number, scrollY: number): SpawnRect[] {
-  const left = scrollX - SPAWN_VIEW_MARGIN;
-  const top = scrollY - SPAWN_VIEW_MARGIN;
-  const right = scrollX + VIEW_W + SPAWN_VIEW_MARGIN;
-  const bottom = scrollY + VIEW_H + SPAWN_VIEW_MARGIN;
+  const viewLeft = scrollX - SPAWN_VIEW_MARGIN;
+  const viewTop = scrollY - SPAWN_VIEW_MARGIN;
+  const viewRight = scrollX + VIEW_W + SPAWN_VIEW_MARGIN;
+  const viewBottom = scrollY + VIEW_H + SPAWN_VIEW_MARGIN;
   const pad = WORLD_INSET;
-  const maxX = WORLD_W - pad;
   const maxY = WORLD_H - pad;
+  const streetLeft = STREET_LEFT + 56;
+  const streetRight = STREET_RIGHT - 56;
   const rects: SpawnRect[] = [];
-  if (left > pad) rects.push({ x0: pad, y0: pad, x1: left, y1: maxY, edge: "left" });
-  if (right < maxX) rects.push({ x0: right, y0: pad, x1: maxX, y1: maxY, edge: "right" });
-  if (top > pad) rects.push({ x0: pad, y0: pad, x1: maxX, y1: top, edge: "top" });
-  if (bottom < maxY) rects.push({ x0: pad, y0: bottom, x1: maxX, y1: maxY, edge: "bottom" });
+  if (streetLeft + MIN_RECT < viewLeft) {
+    rects.push({ x0: streetLeft, y0: pad, x1: Math.min(streetRight, viewLeft), y1: maxY, edge: "left" });
+  }
+  if (streetRight - MIN_RECT > viewRight) {
+    rects.push({ x0: Math.max(streetLeft, viewRight), y0: pad, x1: streetRight, y1: maxY, edge: "right" });
+  }
+  if (viewTop > pad) rects.push({ x0: streetLeft, y0: pad, x1: streetRight, y1: viewTop, edge: "top" });
+  if (viewBottom < maxY) rects.push({ x0: streetLeft, y0: viewBottom, x1: streetRight, y1: maxY, edge: "bottom" });
   return rects.filter((rect) => rect.x1 - rect.x0 > MIN_RECT && rect.y1 - rect.y0 > MIN_RECT);
 }
 

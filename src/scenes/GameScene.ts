@@ -3,7 +3,7 @@ import {
   ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE,
   CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_HITS, CAR_PLAYER_DAMAGE, CAR_ZOMBIE_DAMAGE,
   DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, EXPLOSION_RADIUS, FLOW_REBUILD_MS, HEALTH_PICKUP,
-  PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED,
+  CAR_FIRE_MS, PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED, STREET_LEFT, STREET_RIGHT,
   VIEW_H, VIEW_W, WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, startingAmmo,
   type PickupKind, type WeaponId, type ZombieKind,
 } from "../config";
@@ -11,9 +11,10 @@ import { FlowField } from "../ai/flow-field";
 import { CAR_COLORS } from "../assets/proceduralTextures";
 import * as sfx from "../audio/sfx";
 import { Zombie } from "../entities/Zombie";
-import { FlashlightPipeline } from "../fx/FlashlightPipeline";
+import { FlashlightPipeline, type SceneLight } from "../fx/FlashlightPipeline";
 import { pickOffscreenPoint } from "../spawn/offscreen-point";
 import { WaveDirector, maxAliveFor, modifierLabel, pickSpawnKind, spawnIntervalMs } from "../waves/wave-director";
+import { curbCars, streetBarrels, streetBlocks, streetLamps } from "../world/street";
 import type { HudState } from "./UIScene";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -38,6 +39,7 @@ export class GameScene extends Phaser.Scene {
   private pickups!: Phaser.Physics.Arcade.Group;
   private cars!: Phaser.Physics.Arcade.StaticGroup;
   private barrels!: Phaser.Physics.Arcade.StaticGroup;
+  private buildings!: Phaser.Physics.Arcade.StaticGroup;
   private blood!: Phaser.GameObjects.Particles.ParticleEmitter;
   private sparks!: Phaser.GameObjects.Particles.ParticleEmitter;
   private light!: FlashlightPipeline;
@@ -48,6 +50,9 @@ export class GameScene extends Phaser.Scene {
   private flow = new FlowField();
   private flowReadyAt = 0;
   private waves = new WaveDirector();
+  private lamps: { x: number; y: number }[] = [];
+  private fires: { x: number; y: number; life: number; max: number; sprite: Phaser.GameObjects.Image }[] = [];
+  private shadows!: Phaser.GameObjects.Graphics;
 
   // estado da partida (reiniciado em resetState)
   private hp = PLAYER_MAX_HP;
@@ -82,6 +87,7 @@ export class GameScene extends Phaser.Scene {
     this.padL1 = false;
     this.flowReadyAt = 0;
     this.waves.reset();
+    this.fires = [];
     this.decals = [];
   }
 
@@ -97,11 +103,12 @@ export class GameScene extends Phaser.Scene {
 
     this.cars = this.physics.add.staticGroup();
     this.barrels = this.physics.add.staticGroup();
+    this.buildings = this.physics.add.staticGroup();
     this.pickups = this.physics.add.group();
     this.bullets = this.physics.add.group({ classType: Phaser.Physics.Arcade.Sprite, defaultKey: "bullet", maxSize: 140 });
     this.zombies = this.physics.add.group({ classType: Zombie, maxSize: 160, collideWorldBounds: true });
 
-    this.placeProps();
+    this.placeStreet();
 
     this.player = this.physics.add.sprite(WORLD_W / 2, WORLD_H / 2, "player").setDepth(12).setCollideWorldBounds(true);
     (this.player.body as Body).setCircle(14, 10, 10);
@@ -114,6 +121,7 @@ export class GameScene extends Phaser.Scene {
       speed: { min: 120, max: 420 }, lifespan: { min: 300, max: 800 },
       scale: { start: 1.4, end: 0 }, blendMode: "ADD", emitting: false,
     }).setDepth(20);
+    this.shadows = this.add.graphics().setDepth(4);
 
     // Câmera + lanterna (PostFX)
     const cam = this.cameras.main;
@@ -137,12 +145,17 @@ export class GameScene extends Phaser.Scene {
     // Colisões
     this.physics.add.collider(this.player, this.cars);
     this.physics.add.collider(this.player, this.barrels);
+    this.physics.add.collider(this.player, this.buildings);
     this.physics.add.collider(this.zombies, this.cars);
     this.physics.add.collider(this.zombies, this.barrels);
+    this.physics.add.collider(this.zombies, this.buildings);
     this.physics.add.overlap(this.player, this.zombies, (_p, z) => this.onZombieTouch(z as unknown as Zombie));
     this.physics.add.overlap(this.player, this.pickups, (_p, pk) => this.collect(pk as unknown as Sprite));
     this.physics.add.overlap(this.bullets, this.zombies, (b, z) => this.onBulletZombie(b as unknown as Sprite, z as unknown as Zombie));
     this.physics.add.overlap(this.bullets, this.cars, (b, c) => this.onBulletCar(b as unknown as Sprite, c as unknown as Sprite));
+    this.physics.add.overlap(this.bullets, this.buildings, (b) => {
+      (b as unknown as Sprite).disableBody(true, true);
+    });
     this.physics.add.overlap(this.bullets, this.barrels, (b, br) => {
       (b as unknown as Sprite).disableBody(true, true);
       this.explodeBarrel(br as unknown as Sprite);
@@ -153,6 +166,7 @@ export class GameScene extends Phaser.Scene {
 
   // ====================================================================
   update(time: number, delta: number) {
+    this.updateFires(delta);
     if (this.dead) {
       if (this.keys.R.isDown) this.scene.restart();
       this.emitHud();
@@ -177,38 +191,66 @@ export class GameScene extends Phaser.Scene {
     const screenX = (this.player.x - cam.scrollX + offsetX) / VIEW_W;
     const screenY = (this.player.y - cam.scrollY + offsetY) / VIEW_H;
     this.light.sync(screenX, 1 - screenY, -this.player.rotation);
+    this.light.setLights(this.collectLights(offsetX, offsetY));
+  }
+
+  private collectLights(shakeX: number, shakeY: number): SceneLight[] {
+    const lights: SceneLight[] = [];
+    for (const fire of this.fires) {
+      const strength = fire.life / fire.max;
+      lights.push(this.worldLight({
+        x: fire.x, y: fire.y, radius: 0.2 + strength * 0.08, strength,
+        red: 1, green: 0.42, blue: 0.08, shakeX, shakeY,
+      }));
+    }
+    for (const lamp of this.lamps) {
+      lights.push(this.worldLight({
+        x: lamp.x, y: lamp.y, radius: 0.16, strength: 0.38,
+        red: 1, green: 0.86, blue: 0.55, shakeX, shakeY,
+      }));
+    }
+    return lights;
+  }
+
+  private worldLight(input: SceneLight & { shakeX: number; shakeY: number }): SceneLight {
+    const cam = this.cameras.main;
+    return {
+      x: (input.x - cam.scrollX + input.shakeX) / VIEW_W,
+      y: 1 - (input.y - cam.scrollY + input.shakeY) / VIEW_H,
+      radius: input.radius,
+      strength: input.strength,
+      red: input.red,
+      green: input.green,
+      blue: input.blue,
+    };
   }
 
   // ---------------------------------------------------------------- mundo
-  private placeProps() {
-    const placed: { x: number; y: number; r: number }[] = [{ x: WORLD_W / 2, y: WORLD_H / 2, r: 260 }]; // área livre do spawn
-    const spot = (r: number) => {
-      for (let i = 0; i < 60; i++) {
-        const x = Phaser.Math.Between(120, WORLD_W - 120);
-        const y = Phaser.Math.Between(120, WORLD_H - 120);
-        if (placed.every((p) => Phaser.Math.Distance.Between(x, y, p.x, p.y) > p.r + r)) {
-          placed.push({ x, y, r });
-          return { x, y };
-        }
-      }
-      return null;
-    };
+  private placeStreet() {
+    this.add.tileSprite(STREET_LEFT, 0, 42, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
+    this.add.tileSprite(STREET_RIGHT - 42, 0, 42, WORLD_H, "sidewalk").setOrigin(0, 0).setDepth(1);
+    for (const block of streetBlocks()) this.addBuilding(block);
+    for (const spot of curbCars()) this.addCurbCar(spot.x, spot.y);
+    for (const spot of streetBarrels()) this.addBarrel(spot.x, spot.y);
+    this.lamps = streetLamps();
+    for (const lamp of this.lamps) this.add.image(lamp.x, lamp.y - 18, "lamp").setDepth(6);
+  }
 
-    for (let i = 0; i < 14; i++) {
-      const s = spot(70);
-      if (!s) continue;
-      const color = Phaser.Utils.Array.GetRandom([...CAR_COLORS]);
-      const orient = Math.random() < 0.5 ? "v" : "h";
-      const car = this.cars.create(s.x, s.y, `car_${color}_${orient}`) as Sprite;
-      car.setDepth(5).setData("alarmUntil", 0).setData("hits", 0);
-    }
-    for (let i = 0; i < 12; i++) {
-      const s = spot(30);
-      if (!s) continue;
-      const barrel = this.barrels.create(s.x, s.y, "barrel") as Sprite;
-      barrel.setDepth(5);
-      (barrel.body as unknown as Phaser.Physics.Arcade.StaticBody).setCircle(12, 2, 2);
-    }
+  private addBuilding(block: { x: number; y: number; width: number; height: number }) {
+    const building = this.buildings.create(block.x, block.y, "building") as Sprite;
+    building.setDisplaySize(block.width, block.height).setDepth(3).refreshBody();
+  }
+
+  private addCurbCar(x: number, y: number) {
+    const color = Phaser.Utils.Array.GetRandom([...CAR_COLORS]);
+    const car = this.cars.create(x, y, `car_${color}_v`) as Sprite;
+    car.setDepth(6).setData("alarmUntil", 0).setData("hits", 0);
+  }
+
+  private addBarrel(x: number, y: number) {
+    const barrel = this.barrels.create(x, y, "barrel") as Sprite;
+    barrel.setDepth(6);
+    (barrel.body as unknown as Phaser.Physics.Arcade.StaticBody).setCircle(12, 2, 2);
   }
 
   // ---------------------------------------------------------------- jogador
@@ -360,6 +402,18 @@ export class GameScene extends Phaser.Scene {
     this.separateZombies(live);
     this.rebuildFlow(time);
     for (const zombie of live) this.steerZombie(zombie, time);
+    this.drawShadows(live);
+  }
+
+  private drawShadows(live: Zombie[]) {
+    const graphics = this.shadows;
+    graphics.clear();
+    graphics.fillStyle(0x000000, 0.45);
+    graphics.fillEllipse(this.player.x, this.player.y + 8, 22, 10);
+    for (const zombie of live) {
+      const width = zombie.kind === "brute" ? 40 : 24;
+      graphics.fillEllipse(zombie.x, zombie.y + 8, width, 11);
+    }
   }
 
   private collectLiveZombies(): Zombie[] {
@@ -400,6 +454,10 @@ export class GameScene extends Phaser.Scene {
     if (time < this.flowReadyAt) return;
     this.flowReadyAt = time + FLOW_REBUILD_MS;
     this.flow.clear();
+    for (const child of this.buildings.getChildren()) {
+      const building = child as Sprite;
+      this.flow.blockRect(building.x, building.y, building.displayWidth * 0.5, building.displayHeight * 0.5);
+    }
     for (const child of this.cars.getChildren()) {
       const car = child as Sprite;
       if (!car.active) continue;
@@ -512,6 +570,7 @@ export class GameScene extends Phaser.Scene {
     this.flowReadyAt = 0;
     this.playBlast(x, y, CAR_BLAST_RADIUS);
     this.spawnPickup(x, y, Math.random() < 0.5 ? "smg" : "shotgun");
+    this.ignite(x, y);
     this.applyBlast({ x, y, radius: CAR_BLAST_RADIUS, zombieDamage: CAR_ZOMBIE_DAMAGE, playerDamage: CAR_PLAYER_DAMAGE });
     this.chainFromBlast(x, y, CAR_BLAST_RADIUS);
   }
@@ -535,6 +594,26 @@ export class GameScene extends Phaser.Scene {
     this.applyBlast({ x, y, radius: EXPLOSION_RADIUS, zombieDamage: BARREL_ZOMBIE_DAMAGE, playerDamage: BARREL_PLAYER_DAMAGE });
     this.chainBarrels(x, y, EXPLOSION_RADIUS * 1.15);
     this.alarmCars(x, y, EXPLOSION_RADIUS * 1.5);
+  }
+
+  private ignite(x: number, y: number) {
+    const sprite = this.add.image(x, y, "flame").setDepth(7).setBlendMode(Phaser.BlendModes.ADD);
+    this.fires.push({ x, y, life: CAR_FIRE_MS, max: CAR_FIRE_MS, sprite });
+  }
+
+  private updateFires(delta: number) {
+    for (let index = this.fires.length - 1; index >= 0; index--) {
+      const fire = this.fires[index];
+      fire.life -= delta;
+      if (fire.life <= 0) {
+        fire.sprite.destroy();
+        this.fires.splice(index, 1);
+        continue;
+      }
+      const fade = fire.life / fire.max;
+      const flicker = 0.85 + Math.sin(fire.life / 45) * 0.15;
+      fire.sprite.setAlpha(fade).setScale((0.8 + fade * 0.7) * flicker);
+    }
   }
 
   private playBlast(x: number, y: number, radius: number) {

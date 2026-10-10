@@ -2,6 +2,11 @@ export const VIEW_W = 1280;
 export const VIEW_H = 720;
 export const WORLD_W = 2400;
 export const WORLD_H = 1600;
+export const STREET_LEFT = 700;
+export const STREET_RIGHT = 1700;
+export const CAR_FIRE_MS = 5200;
+export const BUILDING_BLOCK_H = 260;
+export const BUILDING_GAP = 150;
 
 export const PLAYER_SPEED = 210;
 export const PLAYER_MAX_HP = 100;

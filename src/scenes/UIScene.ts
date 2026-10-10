@@ -31,9 +31,6 @@ export class UIScene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.weaponText = this.add.text(24, VIEW_H - 56, "", style);
     this.scoreText = this.add.text(VIEW_W - 24, 20, "", style).setOrigin(1, 0).setAlign("right");
-    this.add.text(VIEW_W / 2, VIEW_H - 22, "WASD mover · mouse mira/atira · 1/2/3 ou roda trocam de arma · gamepad suportado", {
-      fontFamily: "monospace", fontSize: "13px", color: "#777777",
-    }).setOrigin(0.5);
     this.overText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", {
       fontFamily: "monospace", fontSize: "42px", color: "#ff4040", align: "center",
     }).setOrigin(0.5).setVisible(false);
