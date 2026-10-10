@@ -3,7 +3,7 @@ import {
   ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE,
   CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_HITS, CAR_PLAYER_DAMAGE, CAR_ZOMBIE_DAMAGE,
   DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, EXPLOSION_RADIUS, FLOW_REBUILD_MS, HEALTH_PICKUP,
-  BLAST_STOP_MS, CAR_FIRE_MS, COMBO_CAP, COMBO_WINDOW_MS, DECAL_DRY_MS, HIT_STOP_MS,
+  BLAST_STOP_MS, CAR_FIRE_MS, COMBO_CAP, COMBO_WINDOW_MS, DECAL_DRY_MS, HIT_STOP_MS, LASER_RANGE, LASER_STEP,
   PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED,
   STREET_LEFT, STREET_RIGHT,
   VIEW_H, VIEW_W, WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, startingAmmo,
@@ -55,6 +55,7 @@ export class GameScene extends Phaser.Scene {
   private lamps: { x: number; y: number }[] = [];
   private fires: { x: number; y: number; life: number; max: number; sprite: Phaser.GameObjects.Image }[] = [];
   private shadows!: Phaser.GameObjects.Graphics;
+  private laser!: Phaser.GameObjects.Graphics;
   private impactUntil = 0;
   private combo = 0;
   private comboUntil = 0;
@@ -130,6 +131,7 @@ export class GameScene extends Phaser.Scene {
       scale: { start: 1.4, end: 0 }, blendMode: "ADD", emitting: false,
     }).setDepth(20);
     this.shadows = this.add.graphics().setDepth(4);
+    this.laser = this.add.graphics().setDepth(14).setBlendMode(Phaser.BlendModes.ADD);
 
     // Câmera + lanterna (PostFX)
     const cam = this.cameras.main;
@@ -178,6 +180,7 @@ export class GameScene extends Phaser.Scene {
     this.dryDecals(time);
     if (!this.dead) this.expireCombo(time);
     if (this.dead) {
+      this.laser.clear();
       if (this.keys.R.isDown) this.scene.restart();
       this.emitHud();
       return;
@@ -309,6 +312,59 @@ export class GameScene extends Phaser.Scene {
     else this.player.clearTint();
 
     if (firing && time >= this.nextShot) this.shoot(time, aim);
+    this.drawLaser();
+  }
+
+  private drawLaser() {
+    const aim = this.player.rotation;
+    const cos = Math.cos(aim);
+    const sin = Math.sin(aim);
+    const startX = this.player.x + cos * 26;
+    const startY = this.player.y + sin * 26;
+    const end = this.traceLaser(startX, startY, cos, sin);
+    const line = this.laser;
+    line.clear();
+    line.lineStyle(1, 0xff2a2a, 1);
+    line.lineBetween(startX, startY, end.x, end.y);
+    line.fillStyle(0xff6666, 1);
+    line.fillCircle(end.x, end.y, 2.5);
+  }
+
+  private traceLaser(startX: number, startY: number, cos: number, sin: number): { x: number; y: number } {
+    let x = startX;
+    let y = startY;
+    for (let traveled = 0; traveled <= LASER_RANGE; traveled += LASER_STEP) {
+      x = startX + cos * traveled;
+      y = startY + sin * traveled;
+      if (this.laserBlocked(x, y)) return { x, y };
+    }
+    return { x, y };
+  }
+
+  private laserBlocked(x: number, y: number): boolean {
+    for (const child of this.buildings.getChildren()) {
+      if (this.spriteCovers(child as Sprite, x, y)) return true;
+    }
+    for (const child of this.cars.getChildren()) {
+      const car = child as Sprite;
+      if (car.active && this.spriteCovers(car, x, y)) return true;
+    }
+    for (const child of this.barrels.getChildren()) {
+      const barrel = child as Sprite;
+      if (barrel.active && Math.hypot(barrel.x - x, barrel.y - y) <= 14) return true;
+    }
+    for (const child of this.zombies.getChildren()) {
+      const zombie = child as Zombie;
+      if (!zombie.active) continue;
+      if (Math.hypot(zombie.x - x, zombie.y - y) <= ZOMBIES[zombie.kind].radius) return true;
+    }
+    return false;
+  }
+
+  private spriteCovers(sprite: Sprite, x: number, y: number): boolean {
+    const halfW = sprite.displayWidth * 0.5;
+    const halfH = sprite.displayHeight * 0.5;
+    return Math.abs(x - sprite.x) <= halfW && Math.abs(y - sprite.y) <= halfH;
   }
 
   private shoot(time: number, aim: number) {

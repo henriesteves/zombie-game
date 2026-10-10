@@ -10,6 +10,8 @@ export const BLAST_STOP_MS = 80;
 export const DECAL_DRY_MS = 9000;
 export const COMBO_WINDOW_MS = 1600;
 export const COMBO_CAP = 8;
+export const LASER_RANGE = 640;
+export const LASER_STEP = 8;
 export const BUILDING_BLOCK_H = 260;
 export const BUILDING_GAP = 150;
 
