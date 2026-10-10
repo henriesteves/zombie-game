@@ -3,7 +3,8 @@ import {
   ALARM_DURATION, ALARM_SPAWN_COUNT, ALARM_WAVE_CARS, BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE,
   CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_HITS, CAR_PLAYER_DAMAGE, CAR_ZOMBIE_DAMAGE,
   DROP_HEALTH, DROP_SHOTGUN, DROP_SMG, EXPLOSION_RADIUS, FLOW_REBUILD_MS, HEALTH_PICKUP,
-  BLAST_STOP_MS, CAR_FIRE_MS, DECAL_DRY_MS, HIT_STOP_MS, PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED,
+  BLAST_STOP_MS, CAR_FIRE_MS, COMBO_CAP, COMBO_WINDOW_MS, DECAL_DRY_MS, HIT_STOP_MS,
+  PICKUP_LIFE_MS, PLAYER_MAX_HP, PLAYER_SPEED,
   STREET_LEFT, STREET_RIGHT,
   VIEW_H, VIEW_W, WEAPONS, WEAPON_ORDER, WORLD_H, WORLD_W, ZOMBIES, startingAmmo,
   type PickupKind, type WeaponId, type ZombieKind,
@@ -55,6 +56,8 @@ export class GameScene extends Phaser.Scene {
   private fires: { x: number; y: number; life: number; max: number; sprite: Phaser.GameObjects.Image }[] = [];
   private shadows!: Phaser.GameObjects.Graphics;
   private impactUntil = 0;
+  private combo = 0;
+  private comboUntil = 0;
 
   // estado da partida (reiniciado em resetState)
   private hp = PLAYER_MAX_HP;
@@ -91,6 +94,8 @@ export class GameScene extends Phaser.Scene {
     this.waves.reset();
     this.fires = [];
     this.impactUntil = 0;
+    this.combo = 0;
+    this.comboUntil = 0;
     this.decals = [];
   }
 
@@ -171,6 +176,7 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     this.updateFires(delta);
     this.dryDecals(time);
+    if (!this.dead) this.expireCombo(time);
     if (this.dead) {
       if (this.keys.R.isDown) this.scene.restart();
       this.emitHud();
@@ -529,7 +535,7 @@ export class GameScene extends Phaser.Scene {
     const brute = z.kind === "brute";
     this.blood.explode(brute ? 26 : 12, z.x, z.y);
     this.addDecal(z.x, z.y, 0xffffff, brute ? 1.6 : Phaser.Math.FloatBetween(0.7, 1.1));
-    this.score += def.score;
+    this.registerKill(def.score);
     this.kills++;
     sfx.hit();
     if (brute) this.cameras.main.shake(150, 0.006);
@@ -558,6 +564,19 @@ export class GameScene extends Phaser.Scene {
       decal.setTint(Phaser.Display.Color.GetColor(red, Math.round(red * 0.12), Math.round(red * 0.1)));
       decal.setAlpha(0.85 - age * 0.4);
     }
+  }
+
+  private registerKill(baseScore: number) {
+    const now = this.time.now;
+    this.combo = now <= this.comboUntil ? this.combo + 1 : 1;
+    this.comboUntil = now + COMBO_WINDOW_MS;
+    this.score += baseScore * Math.min(COMBO_CAP, this.combo);
+    if (this.combo > 1 && this.combo % 5 === 0) sfx.comboMark();
+  }
+
+  private expireCombo(time: number) {
+    if (this.combo === 0 || time <= this.comboUntil) return;
+    this.combo = 0;
   }
 
   private holdImpact(ms: number) {
@@ -806,6 +825,8 @@ export class GameScene extends Phaser.Scene {
       wave: this.waves.wave,
       phaseSeconds: this.waves.secondsLeft,
       banner: this.waveBanner(),
+      combo: Math.min(COMBO_CAP, this.combo),
+      comboLeft: this.combo <= 1 ? 0 : Math.max(0, (this.comboUntil - this.time.now) / COMBO_WINDOW_MS),
     };
     this.events.emit("hud", s);
   }

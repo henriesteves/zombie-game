@@ -95,6 +95,11 @@ export function hurt() {
   burst({ dur: 0.12, vol: 0.4, f0: 1200, f1: 200 });
 }
 
+export function comboMark() {
+  tone({ type: "sine", f0: 520, f1: 780, dur: 0.08, vol: 0.18 });
+  tone({ type: "sine", f0: 780, f1: 1040, dur: 0.09, vol: 0.14, delay: 0.06 });
+}
+
 export function pickup() {
   tone({ type: "sine", f0: 660, f1: 700, dur: 0.07, vol: 0.3 });
   tone({ type: "sine", f0: 990, f1: 1040, dur: 0.1, vol: 0.3, delay: 0.07 });

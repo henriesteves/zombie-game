@@ -12,6 +12,8 @@ export interface HudState {
   wave: number;
   phaseSeconds: number;
   banner: string;
+  combo: number;
+  comboLeft: number;
 }
 
 /** HUD em uma cena separada, para não ser escurecido pelo shader da lanterna. */
@@ -21,6 +23,8 @@ export class UIScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private overText!: Phaser.GameObjects.Text;
   private alertText!: Phaser.GameObjects.Text;
+  private comboText!: Phaser.GameObjects.Text;
+  private shownCombo = 0;
 
   constructor() {
     super("UI");
@@ -33,6 +37,9 @@ export class UIScene extends Phaser.Scene {
     this.scoreText = this.add.text(VIEW_W - 24, 20, "", style).setOrigin(1, 0).setAlign("right");
     this.overText = this.add.text(VIEW_W / 2, VIEW_H / 2, "", {
       fontFamily: "monospace", fontSize: "42px", color: "#ff4040", align: "center",
+    }).setOrigin(0.5).setVisible(false);
+    this.comboText = this.add.text(VIEW_W / 2, VIEW_H * 0.62, "", {
+      fontFamily: "monospace", fontSize: "54px", color: "#f2efe4",
     }).setOrigin(0.5).setVisible(false);
     this.alertText = this.add.text(VIEW_W / 2, 48, "HORDA A CAMINHO", {
       fontFamily: "monospace", fontSize: "22px", color: "#ff4040", backgroundColor: "rgba(0,0,0,0.55)",
@@ -58,6 +65,17 @@ export class UIScene extends Phaser.Scene {
 
     this.overText.setVisible(s.dead);
     if (s.dead) this.overText.setText(`VOCÊ MORREU\nscore ${s.score} · kills ${s.kills}\n\npressione R para reiniciar`);
+    const showCombo = s.combo >= 2 && !s.dead;
+    this.comboText.setVisible(showCombo);
+    if (!showCombo) this.shownCombo = 0;
+    if (showCombo) {
+      this.comboText.setText(`x${s.combo}`);
+      this.comboText.setAlpha(0.4 + 0.6 * s.comboLeft);
+      if (s.combo !== this.shownCombo) this.comboText.setScale(1.4);
+      this.shownCombo = s.combo;
+      const nextScale = this.comboText.scaleX + (1 - this.comboText.scaleX) * 0.25;
+      this.comboText.setScale(nextScale);
+    }
     const showBanner = s.banner !== "" && !s.dead;
     this.alertText.setVisible(showBanner);
     if (!showBanner) return;
