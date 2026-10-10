@@ -3,10 +3,11 @@ import * as sfx from "../audio/sfx";
 import {
   BARREL_PLAYER_DAMAGE, BARREL_ZOMBIE_DAMAGE, BLAST_STOP_MS, BLOATER_BLAST_RADIUS, BLOATER_PLAYER_DAMAGE,
   BLOATER_ZOMBIE_DAMAGE, CAR_BLAST_HITS, CAR_BLAST_RADIUS, CAR_FIRE_MS, CAR_FIRE_PLAYER_DAMAGE,
-  CAR_FIRE_RADIUS, CAR_FIRE_TICK_MS, CAR_FIRE_ZOMBIE_DAMAGE, CAR_HITS, CAR_PLAYER_DAMAGE,
+  CAR_FIRE_RADIUS, CAR_FIRE_TICK_MS, CAR_FIRE_ZOMBIE_DAMAGE, CAR_PLAYER_DAMAGE,
   CAR_ZOMBIE_DAMAGE, EXPLOSION_RADIUS, type PickupKind,
 } from "../config";
 import type { Zombie } from "../entities/Zombie";
+import { carHitEffect } from "./car-smoke";
 import { isInsideFire } from "./fire-burn";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -18,6 +19,10 @@ const BARREL_ALARM_REACH = 1.5;
 const BLAST_RING_RADIUS = 20;
 const BLAST_RING_MS = 300;
 const PLAYER_FALLOFF = 0.6;
+const SMOKE_INTERVAL_MS = 160;
+const SMOKE_PUFF_MS = 900;
+const SMOKE_RISE = 0.05;
+const SMOKE_RADIUS = 16;
 
 interface Blast {
   x: number;
@@ -52,8 +57,15 @@ export interface ExplosionHost {
   light: { flash: number };
 }
 
+interface SmokePuff {
+  sprite: Phaser.GameObjects.Arc;
+  life: number;
+  car: Sprite;
+}
+
 export class Explosions {
   readonly fires: Fire[] = [];
+  private readonly puffs: SmokePuff[] = [];
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -77,6 +89,7 @@ export class Explosions {
       fire.sinceBurn -= CAR_FIRE_TICK_MS;
       this.burnAround(fire);
     }
+    this.updateSmoke(delta);
   }
 
   private burnAround(fire: Fire) {
@@ -93,9 +106,7 @@ export class Explosions {
 
   strikeCar(car: Sprite) {
     this.host.triggerAlarm(car);
-    const hits = (car.getData("hits") as number) + 1;
-    car.setData("hits", hits);
-    if (hits >= CAR_HITS) this.wreckCar(car);
+    this.applyHits(car, 1);
   }
 
   explodeBarrel(barrel: Sprite) {
@@ -196,9 +207,74 @@ export class Explosions {
   private woundCar(car: Sprite) {
     if (!car.active) return;
     this.host.triggerAlarm(car);
-    const hits = (car.getData("hits") as number) + CAR_BLAST_HITS;
+    this.applyHits(car, CAR_BLAST_HITS);
+  }
+
+  private applyHits(car: Sprite, added: number) {
+    const hits = (car.getData("hits") as number) + added;
     car.setData("hits", hits);
-    if (hits >= CAR_HITS) this.wreckCar(car);
+    const effect = carHitEffect(hits);
+    if (effect === "wreck") {
+      this.clearSmoke(car);
+      this.wreckCar(car);
+      return;
+    }
+    if (effect !== "smoke") return;
+    car.setData("smoking", true);
+  }
+
+  private updateSmoke(delta: number) {
+    this.fadePuffs(delta);
+    for (const car of this.host.cars()) {
+      if (!car.active || !car.getData("smoking")) continue;
+      const waited = ((car.getData("smokeMs") as number) || 0) + delta;
+      if (waited < SMOKE_INTERVAL_MS) {
+        car.setData("smokeMs", waited);
+        continue;
+      }
+      car.setData("smokeMs", waited - SMOKE_INTERVAL_MS);
+      this.spawnPuff(car);
+    }
+  }
+
+  private spawnPuff(car: Sprite) {
+    const sprite = this.scene.add.circle(
+      car.x + Phaser.Math.FloatBetween(-14, 14),
+      car.y - 28,
+      SMOKE_RADIUS,
+      0x8d939a,
+      0.9,
+    ).setDepth(8);
+    this.puffs.push({ sprite, life: SMOKE_PUFF_MS, car });
+  }
+
+  private fadePuffs(delta: number) {
+    for (let index = this.puffs.length - 1; index >= 0; index -= 1) {
+      const puff = this.puffs[index];
+      if (!puff.car.active) {
+        puff.sprite.destroy();
+        this.puffs.splice(index, 1);
+        continue;
+      }
+      puff.life -= delta;
+      if (puff.life <= 0) {
+        puff.sprite.destroy();
+        this.puffs.splice(index, 1);
+        continue;
+      }
+      puff.sprite.y -= delta * SMOKE_RISE;
+      puff.sprite.setAlpha((puff.life / SMOKE_PUFF_MS) * 0.9);
+      puff.sprite.setScale(1 + (1 - puff.life / SMOKE_PUFF_MS) * 0.8);
+    }
+  }
+
+  private clearSmoke(car: Sprite) {
+    car.setData("smoking", false);
+    for (let index = this.puffs.length - 1; index >= 0; index -= 1) {
+      if (this.puffs[index].car !== car) continue;
+      this.puffs[index].sprite.destroy();
+      this.puffs.splice(index, 1);
+    }
   }
 
   private markBloaters(x: number, y: number, radius: number) {

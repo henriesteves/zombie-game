@@ -146,6 +146,7 @@ export const SPAWN_CAP = 150;
 export const SPAWN_BASE = 16;
 export const SPAWN_PER_WAVE = 5;
 export const CAR_HITS = 10;
+export const CAR_SMOKE_HITS = 6;
 export const ALARM_WAVE_CARS = 2;
 export const GAMEPAD_START_BUTTON = 9;
 export const HEALTH_PICKUP = 25;
