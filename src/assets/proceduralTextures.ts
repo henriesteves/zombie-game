@@ -1,8 +1,6 @@
 import Phaser from "phaser";
-import {
-  BLOATER_HALF, BLOATER_PALETTE, BRUTE_HALF, BRUTE_PALETTE, PLAYER_HALF, PLAYER_PALETTE, RUNNER_HALF, RUNNER_PALETTE,
-  SPITTER_HALF, SPITTER_PALETTE, WALKER_HALF, WALKER_PALETTE, fromHalf, makeTexture,
-} from "./pixelArt";
+import { ACTORS } from "./pixel-frames";
+import { makeTexture } from "./pixelArt";
 
 type Draw = (ctx: CanvasRenderingContext2D) => void;
 
@@ -56,13 +54,11 @@ function drawAmmoCrate(ctx: CanvasRenderingContext2D, fill: string, mark: string
 }
 
 export function generateAllTextures(scene: Phaser.Scene) {
-  // ---------- Personagens (pixel art em código) ----------
-  makeTexture(scene, "player", fromHalf(PLAYER_HALF), PLAYER_PALETTE, 3);
-  makeTexture(scene, "zombie_walker", fromHalf(WALKER_HALF), WALKER_PALETTE, 3);
-  makeTexture(scene, "zombie_runner", fromHalf(RUNNER_HALF), RUNNER_PALETTE, 3);
-  makeTexture(scene, "zombie_brute", fromHalf(BRUTE_HALF), BRUTE_PALETTE, 4);
-  makeTexture(scene, "zombie_bloater", fromHalf(BLOATER_HALF), BLOATER_PALETTE, 4);
-  makeTexture(scene, "zombie_spitter", fromHalf(SPITTER_HALF), SPITTER_PALETTE, 3);
+  for (const actor of ACTORS) {
+    makeTexture(scene, actor.key, actor.idle, actor.palette, actor.scale);
+    makeTexture(scene, `${actor.key}_step`, actor.step, actor.palette, actor.scale);
+    makeTexture(scene, `${actor.key}_dead`, actor.dead, actor.palette, actor.scale);
+  }
   canvasTexture(scene, "spit", 8, 8, (ctx) => {
     ctx.fillStyle = "#d6f26a";
     ctx.beginPath();

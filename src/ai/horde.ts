@@ -1,9 +1,10 @@
 import Phaser from "phaser";
-import { FLOW_REBUILD_MS } from "../config";
+import { FLOW_REBUILD_MS, ZOMBIES } from "../config";
 import * as sfx from "../audio/sfx";
 import type { Zombie } from "../entities/Zombie";
 import { remainMs } from "../time/remain-ms";
 import type { FlowField } from "./flow-field";
+import { syncWalk } from "../fx/walk-cycle";
 import { playerPush } from "./player-push";
 
 type Sprite = Phaser.Physics.Arcade.Sprite;
@@ -37,7 +38,10 @@ export function updateHorde(view: HordeView): number {
   const live = collectLive(view.zombies, view.live);
   separateZombies(live);
   const flowReadyAt = rebuildFlow(view);
-  for (const zombie of live) steerZombie(zombie, view);
+  for (const zombie of live) {
+    steerZombie(zombie, view);
+    syncWalk(zombie, ZOMBIES[zombie.kind].texture, view.deltaMs);
+  }
   drawShadows(view.shadows, view.player, live);
   sfx.setHordeLevel(live.length / HORDE_LEVEL_DIVISOR);
   return flowReadyAt;

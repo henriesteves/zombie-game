@@ -18,6 +18,7 @@ import { PlayerKnock } from "../combat/player-knock";
 import { drawLaserSight } from "../combat/laser-sight";
 import { SpitVolley } from "../combat/spit-volley";
 import { Zombie } from "../entities/Zombie";
+import { deadTexture, syncWalk } from "../fx/walk-cycle";
 import { BloodDecals } from "../fx/blood-decals";
 import { Corpses } from "../fx/corpses";
 import { ScorePopups } from "../fx/score-popups";
@@ -350,6 +351,7 @@ export class GameScene extends Phaser.Scene {
     const motion = this.dash.velocity(delta, wantsDash, mx, my, aim);
     const knock = this.knock.velocity(delta);
     this.player.setVelocity(knock?.x ?? motion.x, knock?.y ?? motion.y);
+    syncWalk(this.player, "player", delta);
     this.dashTrail.paint(this.player.x, this.player.y, delta, this.dash.active);
     this.player.setRotation(aim);
     if (this.invulnLeft > 0) this.player.setTint(Math.floor(this.invulnLeft / PLAYER_HURT_BLINK_MS) % 2 ? 0xff5555 : 0xffffff);
@@ -384,7 +386,7 @@ export class GameScene extends Phaser.Scene {
     this.dashTrail.reset();
     this.bestScore = recordHighScore(this.score);
     this.physics.pause();
-    this.player.setTint(0x550000);
+    this.player.setTexture(deadTexture("player")).clearTint();
   }
 
   private onZombieTouch(z: Zombie) {

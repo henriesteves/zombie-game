@@ -1,25 +1,53 @@
 import { clampVolume, readVolume } from "./volume";
 
+const COMPRESSOR_THRESHOLD = -18;
+const COMPRESSOR_KNEE = 12;
+const COMPRESSOR_RATIO = 6;
+const COMPRESSOR_ATTACK = 0.003;
+const COMPRESSOR_RELEASE = 0.18;
+const PITCH_JITTER = 0.06;
+
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let bus: GainNode | null = null;
 let noiseBuf: AudioBuffer | null = null;
 let lastGroan = 0;
 let lastHit = 0;
 let alarmBusyUntil = 0;
 let hordeGain: GainNode | null = null;
 
-/** Chame dentro de um gesto do usuário (clique/tecla). */
 export function unlockAudio() {
   if (!ctx) {
     ctx = new AudioContext();
-    master = ctx.createGain();
-    master.gain.value = readVolume();
-    master.connect(ctx.destination);
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-    const d = noiseBuf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const route = createRoute(ctx, readVolume());
+    master = route.master;
+    bus = route.bus;
+    noiseBuf = createNoise(ctx);
   }
   if (ctx.state === "suspended") void ctx.resume();
+}
+
+function createRoute(context: AudioContext, volume: number): { bus: GainNode; master: GainNode } {
+  const masterGain = context.createGain();
+  masterGain.gain.value = volume;
+  const compressor = context.createDynamicsCompressor();
+  compressor.threshold.value = COMPRESSOR_THRESHOLD;
+  compressor.knee.value = COMPRESSOR_KNEE;
+  compressor.ratio.value = COMPRESSOR_RATIO;
+  compressor.attack.value = COMPRESSOR_ATTACK;
+  compressor.release.value = COMPRESSOR_RELEASE;
+  const busGain = context.createGain();
+  busGain.connect(compressor);
+  compressor.connect(masterGain);
+  masterGain.connect(context.destination);
+  return { bus: busGain, master: masterGain };
+}
+
+function createNoise(context: AudioContext): AudioBuffer {
+  const buffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  return buffer;
 }
 
 export function setMasterVolume(value: number) {
@@ -31,7 +59,7 @@ interface BurstOpts { dur: number; vol: number; f0: number; f1: number; type?: B
 
 /** Rajada de ruído filtrado com envelope exponencial (estalo, explosão, impacto). */
 function burst({ dur, vol, f0, f1, type = "lowpass" }: BurstOpts) {
-  if (!ctx || !master || !noiseBuf) return;
+  if (!ctx || !bus || !noiseBuf) return;
   const t = ctx.currentTime;
   const src = ctx.createBufferSource();
   src.buffer = noiseBuf;
@@ -42,14 +70,14 @@ function burst({ dur, vol, f0, f1, type = "lowpass" }: BurstOpts) {
   const g = ctx.createGain();
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  src.connect(filter).connect(g).connect(master);
+  src.connect(filter).connect(g).connect(bus);
   src.start(t, Math.random() * (1 - dur), dur);
 }
 
 interface ToneOpts { type: OscillatorType; f0: number; f1: number; dur: number; vol: number; delay?: number }
 
 function tone({ type, f0, f1, dur, vol, delay = 0 }: ToneOpts) {
-  if (!ctx || !master) return;
+  if (!ctx || !bus) return;
   const t = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   osc.type = type;
@@ -58,35 +86,75 @@ function tone({ type, f0, f1, dur, vol, delay = 0 }: ToneOpts) {
   const g = ctx.createGain();
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  osc.connect(g).connect(master);
+  osc.connect(g).connect(bus);
   osc.start(t);
   osc.stop(t + dur + 0.02);
 }
 
+interface NoiseLayer { dur: number; vol: number; f0: number; f1: number; type?: BiquadFilterType }
+interface ToneLayer { dur: number; vol: number; f0: number; f1: number; type?: OscillatorType }
+interface ShotVoice { crack: NoiseLayer; body: NoiseLayer; thump: ToneLayer; ring?: ToneLayer }
+
+function pitchScale(): number {
+  return 1 + (Math.random() * 2 - 1) * PITCH_JITTER;
+}
+
+function scaledFreq(freq: number, scale: number): number {
+  return Math.max(20, freq * scale);
+}
+
+function shot(voice: ShotVoice): void {
+  const scale = pitchScale();
+  const crack = voice.crack;
+  burst({ dur: crack.dur, vol: crack.vol, f0: scaledFreq(crack.f0, scale), f1: scaledFreq(crack.f1, scale), type: crack.type ?? "highpass" });
+  const body = voice.body;
+  burst({ dur: body.dur, vol: body.vol, f0: scaledFreq(body.f0, scale), f1: scaledFreq(body.f1, scale), type: body.type ?? "lowpass" });
+  const thump = voice.thump;
+  tone({ type: thump.type ?? "sine", f0: scaledFreq(thump.f0, scale), f1: scaledFreq(thump.f1, scale), dur: thump.dur, vol: thump.vol });
+  const ring = voice.ring;
+  if (!ring) return;
+  tone({ type: ring.type ?? "triangle", f0: scaledFreq(ring.f0, scale), f1: scaledFreq(ring.f1, scale), dur: ring.dur, vol: ring.vol });
+}
+
 export function pistol() {
-  burst({ dur: 0.11, vol: 0.5, f0: 2400, f1: 160 });
-  tone({ type: "sine", f0: 130, f1: 32, dur: 0.13, vol: 0.85 });
+  shot({
+    crack: { dur: 0.02, vol: 0.24, f0: 4200, f1: 1800 },
+    body: { dur: 0.08, vol: 0.3, f0: 1800, f1: 220 },
+    thump: { dur: 0.09, vol: 0.42, f0: 150, f1: 40 },
+  });
 }
 
 export function smg() {
-  burst({ dur: 0.05, vol: 0.35, f0: 2200, f1: 280 });
-  tone({ type: "sine", f0: 100, f1: 36, dur: 0.05, vol: 0.5 });
+  shot({
+    crack: { dur: 0.012, vol: 0.16, f0: 5000, f1: 2200 },
+    body: { dur: 0.035, vol: 0.18, f0: 2400, f1: 500 },
+    thump: { dur: 0.04, vol: 0.2, f0: 110, f1: 48 },
+  });
 }
 
 export function shotgun() {
-  burst({ dur: 0.26, vol: 0.85, f0: 1600, f1: 70 });
-  tone({ type: "sine", f0: 64, f1: 26, dur: 0.26, vol: 1 });
-  tone({ type: "triangle", f0: 160, f1: 40, dur: 0.1, vol: 0.35 });
+  shot({
+    crack: { dur: 0.03, vol: 0.28, f0: 2500, f1: 600 },
+    body: { dur: 0.2, vol: 0.5, f0: 900, f1: 70 },
+    thump: { dur: 0.22, vol: 0.58, f0: 58, f1: 24 },
+  });
 }
 
 export function rifle() {
-  burst({ dur: 0.08, vol: 0.42, f0: 2800, f1: 220 });
-  tone({ type: "sine", f0: 180, f1: 48, dur: 0.09, vol: 0.55 });
+  shot({
+    crack: { dur: 0.02, vol: 0.2, f0: 4800, f1: 2000 },
+    body: { dur: 0.06, vol: 0.24, f0: 2600, f1: 280 },
+    thump: { dur: 0.07, vol: 0.3, f0: 170, f1: 50 },
+    ring: { dur: 0.05, vol: 0.1, f0: 1600, f1: 700 },
+  });
 }
 
 export function magnum() {
-  burst({ dur: 0.18, vol: 0.7, f0: 900, f1: 80 });
-  tone({ type: "sine", f0: 90, f1: 28, dur: 0.2, vol: 0.95 });
+  shot({
+    crack: { dur: 0.025, vol: 0.18, f0: 1400, f1: 400 },
+    body: { dur: 0.1, vol: 0.28, f0: 600, f1: 90 },
+    thump: { dur: 0.2, vol: 0.62, f0: 72, f1: 22 },
+  });
 }
 
 export function explosion() {
@@ -125,7 +193,7 @@ export function pickup() {
 }
 
 export function setHordeLevel(level: number) {
-  if (!ctx || !master) return;
+  if (!ctx || !bus) return;
   if (!hordeGain) {
     const osc = ctx.createOscillator();
     osc.type = "sawtooth";
@@ -135,7 +203,7 @@ export function setHordeLevel(level: number) {
     filter.frequency.value = 140;
     hordeGain = ctx.createGain();
     hordeGain.gain.value = 0;
-    osc.connect(filter).connect(hordeGain).connect(master);
+    osc.connect(filter).connect(hordeGain).connect(bus);
     osc.start();
   }
   const amount = Math.min(1, Math.max(0, level)) * 0.09;
@@ -147,7 +215,7 @@ export function bruteWindup() {
 }
 
 export function groan(pitch = 1) {
-  if (!ctx || !master) return;
+  if (!ctx || !bus) return;
   const now = performance.now();
   if (now - lastGroan < 250) return;
   lastGroan = now;
@@ -174,7 +242,7 @@ export function groan(pitch = 1) {
   g.gain.linearRampToValueAtTime(0.25, t + 0.1);
   g.gain.linearRampToValueAtTime(0, t + 0.8);
 
-  osc.connect(filter).connect(g).connect(master);
+  osc.connect(filter).connect(g).connect(bus);
   osc.start(t);
   lfo.start(t);
   osc.stop(t + 0.85);
@@ -183,7 +251,7 @@ export function groan(pitch = 1) {
 
 /** Alarme de carro: alterna dois tons a cada 250 ms durante `seconds`. */
 export function alarm(seconds = 6) {
-  if (!ctx || !master) return;
+  if (!ctx || !bus) return;
   const t = ctx.currentTime;
   if (t < alarmBusyUntil) return;
   alarmBusyUntil = t + seconds;
@@ -199,7 +267,7 @@ export function alarm(seconds = 6) {
   g.gain.setValueAtTime(0.07, t);
   g.gain.setValueAtTime(0.07, t + seconds - 0.1);
   g.gain.linearRampToValueAtTime(0, t + seconds);
-  osc.connect(filter).connect(g).connect(master);
+  osc.connect(filter).connect(g).connect(bus);
   osc.start(t);
   osc.stop(t + seconds);
 }

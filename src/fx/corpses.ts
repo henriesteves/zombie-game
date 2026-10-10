@@ -1,4 +1,7 @@
 import Phaser from "phaser";
+import { ZOMBIES } from "../config";
+import type { Zombie } from "../entities/Zombie";
+import { deadTexture } from "./walk-cycle";
 import { advanceCorpseAge, corpseAlpha, leavesCorpse, type RemovalCause } from "./corpse-fade";
 
 interface Corpse {
@@ -8,7 +11,6 @@ interface Corpse {
 
 const MAX_CORPSES = 60;
 const CORPSE_DEPTH = 3;
-const CORPSE_TINT = 0x5a4a44;
 
 /** Physics-free bodies left where zombies die. They fade on world time only. */
 export class Corpses {
@@ -16,11 +18,11 @@ export class Corpses {
 
   constructor(private readonly scene: Phaser.Scene) {}
 
-  leave(zombie: Phaser.GameObjects.Sprite, cause: RemovalCause): void {
+  leave(zombie: Zombie, cause: RemovalCause): void {
     if (!leavesCorpse(cause)) return;
     const corpse = this.take();
-    corpse.image.setTexture(zombie.texture.key).setPosition(zombie.x, zombie.y);
-    corpse.image.setRotation(zombie.rotation + Math.PI / 2).setScale(1).setTint(CORPSE_TINT);
+    corpse.image.setTexture(deadTexture(ZOMBIES[zombie.kind].texture)).setPosition(zombie.x, zombie.y);
+    corpse.image.setRotation(zombie.rotation).setScale(1).clearTint();
     corpse.image.setDepth(CORPSE_DEPTH).setAlpha(corpseAlpha(0)).setVisible(true);
     corpse.age = 0;
     this.corpses.push(corpse);

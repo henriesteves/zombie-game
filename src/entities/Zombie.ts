@@ -45,6 +45,7 @@ export class Zombie extends Phaser.Physics.Arcade.Sprite {
     this.spitWindupLeft = 0;
     this.setScale(1);
     this.setTexture(def.texture);
+    this.setData("walkAge", 0);
     this.setDepth(10);
     this.enableBody(true, x, y, true, true);
     this.clearTint();

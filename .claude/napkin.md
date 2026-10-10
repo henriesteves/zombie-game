@@ -33,8 +33,8 @@
    Do instead: read and write only `zombie-game-high-score` from `src/score/high-score.ts`. Never call `localStorage.clear()`.
 6. **[2026-10-09] Zombies are pooled; call `spawn()` after `group.get()`**
    Do instead: reuse `Zombie.spawn(kind, x, y)` and `bullets.get()`. Do not `new` zombies or bullets per shot.
-7. **[2026-10-09] All art and SFX are procedural**
-   Do instead: add a texture key in `generateAllTextures` / `pixelArt.ts`, or a function in `audio/sfx.ts`. Unlock audio only from the Boot click.
+7. **[2026-10-10] All art and SFX are procedural**
+   Do instead: add poses in `src/assets/pixel-frames.ts` (`key`, `key_step`, `key_dead`). Connect new voices to the compressor `bus` in `audio/sfx.ts`, and leave the menu volume on `master`. Unlock audio only from the Boot click.
 8. **[2026-10-10] A horde ends only when its roster is dead**
    Do instead: fill `WaveDirector` with `noteSpawn`, then `clear()` once `rosterFilled` and no zombie is alive. The calm clock is what starts the next fight. Do not despawn the horde to finish it.
 9. **[2026-10-09] Zombie spawn stays on the street, off camera**

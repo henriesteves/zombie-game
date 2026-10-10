@@ -43,9 +43,10 @@ src/
   world/street.ts               prédios, carros da guia, barris e postes
   world/street-view.ts          coloca a rua na cena
   spawn/offscreen-point.ts      spawn na rua, fora da câmera
-  assets/pixelArt.ts            matrizes de sprites (jogador, zumbis) + paletas
+  assets/pixel-frames.ts        matrizes de sprites (parado, passo, morte) + paletas
+  assets/pixelArt.ts            pinta essas matrizes no Phaser
   assets/proceduralTextures.ts  chão, carros, barril, projétil, decals, pickups
-  audio/sfx.ts                  SFX procedurais (Web Audio)
+  audio/sfx.ts                  SFX procedurais (Web Audio, compressor)
   fx/FlashlightPipeline.ts      shader da lanterna (PostFX)
   entities/Zombie.ts            zumbi com pooling e investida do brute
   scenes/BootScene.ts           gera texturas e desbloqueia o áudio
@@ -55,8 +56,9 @@ src/
 
 ## Substituindo por arte final
 
-Cada textura tem uma chave (`player`, `zombie_walker`, `car_red_h`...). Para trocar por PNG, carregue o
-arquivo no `preload()` com a **mesma chave** e remova a geração correspondente em `generateAllTextures`.
+Cada textura tem uma chave (`player`, `zombie_walker`, `car_red_h`...). O passo e a morte usam essa chave
+com sufixo `_step` e `_dead`. Para trocar por PNG, carregue o arquivo no `preload()` com a **mesma chave**
+e remova a geração correspondente em `generateAllTextures`.
 Ajuste os raios de colisão em `config.ts` se o tamanho do sprite mudar.
 
 ## Próximos passos
